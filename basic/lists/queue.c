@@ -1,5 +1,8 @@
 #include<stdio.h>
 #include<stdlib.h>
+
+
+
 typedef struct queue{
     int value;
     struct queue* prev;
@@ -70,53 +73,22 @@ int dequeue(){
 int main(){
     inqueue(1);
     inqueue(2);
-    printf("%d\n",dequeue());
-    printf("%d\n",dequeue());
+    printf("dequeue: %d\n",dequeue());
+    printf("dequeue: %d\n",dequeue());
     inqueue(3);
     inqueue(4);
     inqueue(5);
     inqueue(6);
-     printf("%d\n",dequeue());
-     printf("%d\n",dequeue());
+     printf("dequeue: %d\n",dequeue());
+     printf("dequeue: %d\n",dequeue());
     inqueue(7);
     inqueue(8);
 
 
 
-   
- printf("%d\n",dequeue());
- printf("%d\n",dequeue());
- printf("%d\n",dequeue());
- printf("%d\n",dequeue());
+    print_queue();
 
     return 0;
 
 }
 
-
-
-/* 
-queue* temp=back;
-    int i=front->value;
-
-    if(front==NULL){
-        printf("Error");
-        return 0;
-    }
-
-    if(front == back){
-        free(temp);
-        front = NULL;
-        back = NULL;
-        return i;
-    }
-    
-    while(temp->prev != front)
-        temp = temp->prev;
-    
-    temp->prev = NULL;
-    free(front);
-    front = temp;
-    return i;
-
-**/

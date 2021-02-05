@@ -1,18 +1,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "linker.h"
+#include "linked-list.h"
 
 
 int main() {
     
     list* l;
     
-
-
     l = list_new();
-
-    
 
     node_add(l, 55);
    
