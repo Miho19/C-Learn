@@ -1,0 +1,113 @@
+#include<stdio.h>
+#include <stdlib.h>
+
+# define MATRIX_LIMIT 10
+
+void read_matrix(float **matrix, int *x, int *y)
+{   
+   
+    int i;
+    int j;
+  
+    printf("\nEnter the size of matrix - First number of row -");
+    for(;;)
+    {
+        if(scanf("%i",x)==1 && *x <= MATRIX_LIMIT && *x >= 0)
+        {
+            break;
+        }
+        else
+        {
+            printf("Wrong input, try again");
+        }
+    }
+
+    printf("\nEnter the size of matrix - second no of column -");
+    for(;;)
+    {
+        if(scanf("%i",y)==1 && *y <= MATRIX_LIMIT && *y >= 0)
+        {
+            break;
+        }
+        else
+        {
+            printf("Wrong input, try again");
+        }
+    }
+ 
+    printf("Enter the matrice\n");
+    for ( i = 0; i < *x ; i++)
+    {
+        for(j = 0; j < *y; j++)
+        {
+            printf("Enter [%i][%i]",i + 1, j + 1);
+            scanf("%f",&matrix[i][j]);     
+            printf(" %f",matrix[i][j]);   
+        }
+    }
+
+    
+
+}
+
+
+void print_matrix ( float **matrix, int x, int y)
+{
+    int i;
+    int j;
+
+    for (i = 0; i < x ; i++)
+    {
+        for(j = 0; j < y; j++)
+        {
+            printf("%.2f ", matrix[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+
+int main(void)
+{
+    float **a;
+    int i;
+    int j;
+
+
+    int x;
+    int y;
+
+    a = malloc(MATRIX_LIMIT * sizeof(*a));
+
+    
+
+    for(i=0;i<MATRIX_LIMIT;i++){
+        a[i] = malloc(MATRIX_LIMIT * sizeof(a[0]));
+        for(j=0;j<MATRIX_LIMIT;j++){
+            a[i][j] = 0.0;
+        }
+    }
+
+    x = 0;
+    y = 0;
+
+    read_matrix(a, &x, &y);
+    print_matrix(a, x, y);
+ 
+
+    for(i=0;i<MATRIX_LIMIT;i++){
+        free(a[i]);
+    }
+
+    free(a);
+
+    x = 1321;
+
+    while(x > 0){
+        printf("%d ", (x % 10));
+        x = x / 10;
+    }
+
+    return 0;
+    
+}
