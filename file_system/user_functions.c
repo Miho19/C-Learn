@@ -312,11 +312,18 @@ int file_write(sequence *file_name, sequence *file_data, int mode){
     return 0;
 }
 
+
+
+
 int cd(sequence *dir_name){
 
     int i;
     int j;
     int x;
+
+    int y;
+
+
     int path_length;
     int root_dir_file_number;
     direntry *dir;
@@ -324,6 +331,10 @@ int cd(sequence *dir_name){
     superblock s;
     char temp_path[512];
     inode current_inode;
+    int current_inode_file_number;
+    int name_length;
+
+    inode test_inode;
     
     int items_path_split;
     char *path_split[MAX_FILE_AMOUNT];
@@ -343,7 +354,7 @@ int cd(sequence *dir_name){
     dir = malloc(sizeof(direntry) * MAX_FILE_AMOUNT);
     fread(dir, sizeof(direntry), root_dir_file_number, f);
     
-
+    /** printf("%d %d %c\n", i, dir_name->string[i],dir_name->string[i]);*/
     path_length = 0;
     path_length = strlen(path);
 
@@ -351,6 +362,8 @@ int cd(sequence *dir_name){
     items_dirname_split = 0;
     temp_index = 0;
     memset(temp, 0, sizeof(temp));
+    current_inode_file_number = 0;
+    name_length = 0;
 
     if(dir_name->string[0] == '/') {
         strcpy(temp, "/");
@@ -360,11 +373,17 @@ int cd(sequence *dir_name){
         i++;
     }
 
+  
+
     while(i < dir_name->length) {
+        
         if( i == (dir_name->length) || dir_name->string[i] == '/' || dir_name->string[i] == '\0') {
+           
            temp[temp_index] = '\0';
            dirname_split[items_dirname_split] = malloc(strlen(temp));
+           
            strcpy(dirname_split[items_dirname_split], temp);
+           
            memset(temp, 0, sizeof(temp));
            temp_index = 0;
            items_dirname_split++;
@@ -376,10 +395,68 @@ int cd(sequence *dir_name){
         temp_index++;
         i++;
     }
+/**
+    for(i=0;i<items_dirname_split;i++){
+        printf("%d:%s\n", strlen(dirname_split[i]), dirname_split[i]);
+        
+    }
+
+  */
 
     if(strcmp(dirname_split[0], "/") == 0){
-        printf("use dirname as full path\n");
+
+       
+        if(strlen(dirname_split[1]) == 0){
+            strcpy(path, "/");
+            goto exit;
+        }
+
+
+        temp[0] = '/';
+        temp_index = 1;
+        i = 1;
+        current_inode = root_inode;
+
+        while(i < items_dirname_split && strlen(dirname_split[i]) > 0) {
+            current_inode_file_number = current_inode.file_size / sizeof(direntry);
+            memset(dir, 0, BLOCK_SIZE);
+            fseek(f, current_inode.data_index * BLOCK_SIZE, 0);
+            fread(dir, sizeof(direntry), current_inode_file_number, f);
+
+            for(j=0;j<current_inode_file_number;j++){
+
+                if(strcmp(dir[j].name, dirname_split[i]) == 0) {
+                    fseek(f, s.index_inodes + (sizeof(inode) * dir[j].inode_number), 0);
+                    fread(&test_inode, sizeof(inode), 1, f);
+                    
+                    if(test_inode.type != directory){
+                        printf("\"%s\" is not a directory\n", dirname_split[i]);
+                        goto exit;
+                    }
+
+                    name_length = strlen(dir[j].name);
+
+
+                    for(x = 0;x<name_length;x++, temp_index++)
+                        temp[temp_index] = dir[j].name[x];
+                    temp[temp_index++] = '/';
+                    break;
+                }
+
+            }
+
+            if(j == current_inode_file_number) {
+                printf("\"%s\" is not a directory\n", dirname_split[i]);
+                goto exit;
+            }
+
+
+            i++;
+        }
+
+        strcpy(path, temp);
         goto exit;
+
     }
 
 
