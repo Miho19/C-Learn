@@ -79,7 +79,7 @@ int open_files_print_all() {
 
 /** File requests */
 
-int file_open(char *name){
+int file_open(sequence *file_name){
 
     inode root_inode;
     direntry *dir;
@@ -104,7 +104,7 @@ int file_open(char *name){
             }
 
         } else {
-            if(strcmp(mem_inode_list[i]->file->name, name) == 0) {
+            if(strcmp(mem_inode_list[i]->file->name, file_name->string) == 0) {
                 return mem_inode_list[i]->fd;
             }
         }
@@ -133,7 +133,7 @@ int file_open(char *name){
     fread(dir, sizeof(direntry), amount_of_files, f);
 
     for(dir_index=0;dir_index<amount_of_files;dir_index++){                                                           /** Search through direntry array */
-        if(strcmp(dir[dir_index].name, name) == 0) {
+        if(strcmp(dir[dir_index].name, file_name->string) == 0) {
             break;
         }
     }
@@ -144,9 +144,9 @@ int file_open(char *name){
     mem_inode_list[index_free_mem_list]->fd = ++fd_counter;
 
     mem_inode_list[index_free_mem_list]->file = malloc(sizeof(user_file));
-    mem_inode_list[index_free_mem_list]->file->name = malloc(strlen(name));
+    mem_inode_list[index_free_mem_list]->file->name = malloc(file_name->length);
     
-    strcpy(mem_inode_list[index_free_mem_list]->file->name, name);
+    strcpy(mem_inode_list[index_free_mem_list]->file->name, file_name->string);
     mem_inode_list[index_free_mem_list]->file->off = 0;
     mem_inode_list[index_free_mem_list]->file->data = 0;
     
@@ -202,7 +202,7 @@ int display_text(const char *data, int length) {
 
 
 
-int cat(char *name) {
+int cat(sequence *file_name) {
     int mem_inode_index;
     inode root_inode;
     direntry *dir;
@@ -212,7 +212,7 @@ int cat(char *name) {
     char *data;
 
     for(mem_inode_index=0;mem_inode_index<MAX_FILE_AMOUNT;mem_inode_index++) {
-        if( mem_inode_list[mem_inode_index] && strcmp(mem_inode_list[mem_inode_index]->file->name, name) == 0){
+        if( mem_inode_list[mem_inode_index] && strcmp(mem_inode_list[mem_inode_index]->file->name, file_name->string) == 0){
             display_text(mem_inode_list[mem_inode_index]->file->data, strlen(mem_inode_list[mem_inode_index]->file->data));
             return mem_inode_list[mem_inode_index]->file->data_length;
         }
@@ -229,7 +229,7 @@ int cat(char *name) {
     fread(dir, sizeof(direntry), number_of_files, f);
 
     for(i=0;i<number_of_files;i++){
-        if( strcmp(dir[i].name, name) == 0){
+        if( strcmp(dir[i].name, file_name->string) == 0){
             break;
         }
     }
@@ -243,7 +243,7 @@ int cat(char *name) {
     fread(&file_inode, sizeof(inode), 1, f);
 
     if(file_inode.file_size <= 0) {
-        printf("%s does not contain data\n", name);
+        printf("%s does not contain data\n", file_name->string);
         return 0;
     }
 
@@ -261,18 +261,18 @@ int cat(char *name) {
 
 /** data request */
 
-int file_write(char *name, const void *data, int mode){
+int file_write(sequence *file_name, sequence *file_data, int mode){
     int mem_inode_index;
 
     for(mem_inode_index=0;mem_inode_index<MAX_FILE_AMOUNT;mem_inode_index++) {
-        if( mem_inode_list[mem_inode_index] && strcmp(mem_inode_list[mem_inode_index]->file->name, name) == 0){
+        if( mem_inode_list[mem_inode_index] && strcmp(mem_inode_list[mem_inode_index]->file->name, file_name->string) == 0){
             break;
         }
     }
 
     if(mem_inode_index == MAX_FILE_AMOUNT) {
-        printf("%s is not an open file\n", name);
-        return 0;
+        printf("%s is not an open file\n", file_name->string);
+        return -1;
     }
 
     if(mem_inode_list[mem_inode_index]->user_inode->type == directory) {
@@ -283,31 +283,32 @@ int file_write(char *name, const void *data, int mode){
     if(mem_inode_list[mem_inode_index]->file->data == 0) {
         mem_inode_list[mem_inode_index]->file->data = malloc(BLOCK_SIZE);
         memset(mem_inode_list[mem_inode_index]->file->data, 0, BLOCK_SIZE);
-        strcpy(mem_inode_list[mem_inode_index]->file->data, data);
-        mem_inode_list[mem_inode_index]->file->data_length += strlen(data);
-        mem_inode_list[mem_inode_index]->file->off += strlen(data);
-        return strlen(data);
+        strcpy(mem_inode_list[mem_inode_index]->file->data, file_data->string);
+        mem_inode_list[mem_inode_index]->file->data_length += file_data->length;
+        mem_inode_list[mem_inode_index]->file->off += file_data->length;
+        return file_data->length;
     }
 
     if(mode == FILE_APPEND) {
         mem_inode_list[mem_inode_index]->file->data = realloc(mem_inode_list[mem_inode_index]->file->data, BLOCK_SIZE);
-        strcpy(mem_inode_list[mem_inode_index]->file->data + mem_inode_list[mem_inode_index]->file->data_length, data);
-        mem_inode_list[mem_inode_index]->file->data_length += strlen(data);
+        strcpy(mem_inode_list[mem_inode_index]->file->data + mem_inode_list[mem_inode_index]->file->data_length, file_data->string);
+        mem_inode_list[mem_inode_index]->file->data_length += file_data->length;
         mem_inode_list[mem_inode_index]->file->data[mem_inode_list[mem_inode_index]->file->data_length + 1] = '\0';
         mem_inode_list[mem_inode_index]->file->off = mem_inode_list[mem_inode_index]->file->data_length;
-        return strlen(data);
+        return file_data->length;
     } else {
         mem_inode_list[mem_inode_index]->file->data = realloc(mem_inode_list[mem_inode_index]->file->data, BLOCK_SIZE);
         memset(mem_inode_list[mem_inode_index]->file->data, 0, BLOCK_SIZE);
-        strcpy(mem_inode_list[mem_inode_index]->file->data, data);
-        mem_inode_list[mem_inode_index]->file->data_length = strlen(data);
-        mem_inode_list[mem_inode_index]->file->off = strlen(data);
-        return strlen(data);
+        strcpy(mem_inode_list[mem_inode_index]->file->data, file_data->string);
+        printf("file_data = %s\n", mem_inode_list[mem_inode_index]->file->data);
+        mem_inode_list[mem_inode_index]->file->data_length = file_data->length;
+        mem_inode_list[mem_inode_index]->file->off = file_data->length;
+        return file_data->length;
     }
     
 
     
-    return 1;
+    return 0;
 }
 
 

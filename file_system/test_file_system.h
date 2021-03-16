@@ -92,12 +92,12 @@ typedef struct command_only {
 
 typedef struct file_request {
     char *command_name;
-    int (*file_function)(char *name);
+    int (*file_function)(sequence *file_name);
 } file_request;
 
 typedef struct data_request {
     char *command_name;
-    int (*data_function)(char *name, const void *data, int mode);
+    int (*data_function)(sequence *file_name, sequence *file_data, int mode);
 } data_request;
 
 typedef enum {
@@ -137,12 +137,12 @@ int open_files_print_all(void);
 
 /** file request */
 
-int file_open(char *name);
-int cat(char *name);
+int file_open(sequence *file_name);
+int cat(sequence *file_name);
 
 
 /** data request */
-int file_write(char *name, const void *data, int mode);
+int file_write(sequence *file_name, sequence *file_data, int mode);
 
 
 

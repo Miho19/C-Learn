@@ -51,7 +51,13 @@ int execute(){
     }
 
     if(rq->type == FILE_REQUEST) {
-        
+        list_file_command_name[rq->command_index].file_function(rq->file_name);
+        return 0;
+    }
+
+    if(rq->type == DATA_REQUEST) {
+        list_file_command_name_data[rq->command_index].data_function(rq->file_name, rq->file_data, FILE_OVERWRITE);
+        return 0;
     }
 
 
@@ -101,7 +107,7 @@ int input() {
 
     if(!rq->file_data){
         rq->file_data= malloc(sizeof(sequence));
-        rq->file_data = malloc(sizeof(char) * BLOCK_SIZE);
+        rq->file_data->string = malloc(sizeof(char) * BLOCK_SIZE);
         rq->file_data->length = 0;
     }
 
@@ -115,6 +121,7 @@ int input() {
 
 
     while((c = getchar()) != EOF ) {
+        
         if(c == ' ' || c == 10 || c == 4) {
             input[i] = '\0';
             break;
@@ -142,6 +149,8 @@ int input() {
         return 1;
     }
 
+    
+
     if(rq->type == COMMAND_ONLY)
         return 1;
 
@@ -152,8 +161,7 @@ int input() {
 
     while(c != 10)  {
         c = getchar();
-
-        if(c == ' ' || c == 4 || c == -1) {
+        if(c == ' ' || c == 4 || c == -1 || c == 10) {    
             input[i] = '\0';
             break;
         }
@@ -161,9 +169,11 @@ int input() {
         i++;
     }
 
+    
 
-    if(i + 3 > MAX_FILE_NAME) {
-        printf("Filename can only be 14 characters long\n");
+
+    if(i > MAX_FILE_NAME) {
+        printf("Filename can only be 14 characters long: %d\n", i);
         rq->status = FILE_NAME_TOO_LONG;
         rq->command_index = -1;
         return -1;
@@ -185,32 +195,44 @@ int input() {
     strcpy(rq->file_name->string, input);
 
 
+
+
     if(rq->type == FILE_REQUEST)
         return 0;
 
     i = 0;
     memset(input, 0 , sizeof(input));
 
-    
-    while( c != 10 && i < BLOCK_SIZE)  {
+    if(c == 10) {    
+        printf("Nothing to write\n");
+        rq->status = NO_FILE_DATA;
+        rq->command_index = -1;
+        return -1;
+    }
+
+    while( i < BLOCK_SIZE)  {
         c = getchar();
         
-        if(c == EOT || c == 26 || c == 4 || c == EOF) {
+        if(c == EOT || c == 26 || c == 4 || c == EOF || c == 10) {
             input[i] = '\0';
+            i++;
             break;
         }
 
         if(c == '\\') {
             switch( (c = getchar()) ) {
                 case 'n':
-                    c = '\n';
-                    break;
+                    input[i] = '\n';
+                    i++;
+                    continue;
                 case 't':
-                    c = '\t';
-                    break;
+                    input[i] = '\t';
+                    i++;
+                    continue;
                 case 'r':
-                    c = '\r';
-                    break;
+                   input[i] = '\r';
+                    i++;
+                    continue;
                 default:
                     input[i] = '\\';
                     i++;
@@ -230,6 +252,7 @@ int input() {
 
     rq->file_data->length = i;
     strcpy(rq->file_data->string, input);
+
 
     return 1;
 }
@@ -310,5 +333,12 @@ int quit_file_system(){
 }
 
 
-
+/** 
+ * character 10 represents null value or something in windows for getchar()
+ * 
+ * 
+ * 
+ * 
+ * 
+*/
 

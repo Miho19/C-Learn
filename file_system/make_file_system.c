@@ -295,10 +295,12 @@ int file_create(user_file *file, inode *l) {
 }
 
 int file_commit_write(user_file *file, inode *l) {
-    
-    if(file->data_length > BLOCK_SIZE)
-        file->data_length = BLOCK_SIZE;
+    int i;
 
+    if(file->data_length > BLOCK_SIZE) {
+        file->data_length = BLOCK_SIZE;
+    }
+    
     l->file_size = file->data_length;
     inode_update(l);
 
