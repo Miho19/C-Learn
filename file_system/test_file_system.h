@@ -77,7 +77,7 @@ typedef struct mem_inode {
     inode *user_inode;
 } mem_inode;
 
-direntry *current_dir;
+
 char *path;
 
 typedef struct sequence {
@@ -135,11 +135,15 @@ int ls(void);
 int superblock_print(void);
 int open_files_print_all(void);
 
+
 /** file request */
 
 int file_open(sequence *file_name);
 int cat(sequence *file_name);
 
+/** Dir request */
+int mkdir(sequence *dir_name);
+int cd(sequence *dir_name);
 
 /** data request */
 int file_write(sequence *file_name, sequence *file_data, int mode);

@@ -29,7 +29,9 @@ command_only list_file_command_only[] = {
 file_request list_file_command_name[] = {
     {"open", file_open},
     {"close", NULL},
-    {"cat", cat}
+    {"cat", cat},
+    {"mkdir", mkdir},
+    {"cd", cd}
 };
 
 data_request list_file_command_name_data[] =  {
@@ -37,7 +39,7 @@ data_request list_file_command_name_data[] =  {
 };
 
 int execute(){
-    unsigned int i;
+   
 
     if(rq->type == PENDING)
         return -1;
@@ -124,6 +126,7 @@ int input() {
         
         if(c == ' ' || c == 10 || c == 4) {
             input[i] = '\0';
+            i++;
             break;
         }
         input[i] = c;
@@ -163,6 +166,7 @@ int input() {
         c = getchar();
         if(c == ' ' || c == 4 || c == -1 || c == 10) {    
             input[i] = '\0';
+            i++;
             break;
         }
         input[i] = c;
@@ -172,7 +176,7 @@ int input() {
     
 
 
-    if(i > MAX_FILE_NAME) {
+    if(i > 512) {
         printf("Filename can only be 14 characters long: %d\n", i);
         rq->status = FILE_NAME_TOO_LONG;
         rq->command_index = -1;
