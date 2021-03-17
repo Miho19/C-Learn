@@ -1,0 +1,45 @@
+
+        temp[0] = '/';
+        temp_index = 1;
+        i = 1;
+        current_inode = root_inode;
+
+        while(i < items_dirname_split && strlen(dirname_split[i]) > 0) {
+            current_inode_file_number = current_inode.file_size / sizeof(direntry);
+            memset(dir, 0, BLOCK_SIZE);
+            fseek(f, current_inode.data_index * BLOCK_SIZE, 0);
+            fread(dir, sizeof(direntry), current_inode_file_number, f);
+
+            for(j=0;j<current_inode_file_number;j++){
+
+                if(strcmp(dir[j].name, dirname_split[i]) == 0) {
+                    fseek(f, s.index_inodes + (sizeof(inode) * dir[j].inode_number), 0);
+                    fread(&test_inode, sizeof(inode), 1, f);
+                    
+                    if(test_inode.type != directory){
+                        printf("\"%s\" is not a directory\n", dirname_split[i]);
+                        goto exit;
+                    }
+
+                    name_length = strlen(dir[j].name);
+
+
+                    for(x = 0;x<name_length;x++, temp_index++)
+                        temp[temp_index] = dir[j].name[x];
+                    temp[temp_index++] = '/';
+                    break;
+                }
+
+            }
+
+            if(j == current_inode_file_number) {
+                printf("\"%s\" is not a directory\n", dirname_split[i]);
+                goto exit;
+            }
+
+
+            i++;
+        }
+
+        strcpy(path, temp);
+        goto exit;

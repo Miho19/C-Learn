@@ -384,7 +384,7 @@ int split_path(char **dest, const char *source, int length){
     int items_split;
     int source_index;
     int temp_index;
-    int i;
+   
 
     char temp[512];
 
@@ -404,6 +404,8 @@ int split_path(char **dest, const char *source, int length){
 
         if(source_index == length || source[source_index] == '/' || source[source_index] == '\0'){
             temp[temp_index] = '\0';
+            if(strlen(temp) == 0)
+                break;
             dest[items_split] = malloc(temp_index + 1);
             strcpy(dest[items_split], temp);
             memset(temp, 0 , sizeof(temp));
@@ -418,10 +420,61 @@ int split_path(char **dest, const char *source, int length){
         temp_index++;
     }
 
-
     return items_split;
 
+}
 
+
+int print_list_inodes(direntry *dir, int length){
+    int i;
+    printf("inode | name\n");
+
+    for(i=0;i<length;i++){
+        printf("%d | %s\n", dir[i].inode_number, dir[i].name);
+    }
+
+    return 0;
+}
+
+
+
+int root_inode_get(superblock *s, inode *root, direntry **file_list){
+    
+    int number_of_files;
+
+    number_of_files = 0;
+    
+    fseek(f, s->index_inodes, 0);
+    fread(root, sizeof(inode), 1, f);
+
+    number_of_files = root->file_size / sizeof(direntry);
+
+    fseek(f, root->data_index * BLOCK_SIZE, 0);
+
+
+
+    (*file_list) = malloc(sizeof(direntry) * MAX_FILE_AMOUNT);
+    memset((*file_list), 0, MAX_FILE_AMOUNT * sizeof(direntry));
+
+    fread((*file_list), sizeof(direntry), number_of_files, f);
+
+    return number_of_files;
+
+}
+
+
+int inode_fetch(superblock *s, inode *l, int inode_number) {
+    fseek(f, s->index_inodes + (sizeof(inode) * inode_number), 0);
+    fread(l, sizeof(inode), 1, f);
+
+    if(l->inode_number != inode_number){
+        printf("???\n");
+        exit(0);
+    }
+
+    
+
+    return l->inode_number;
 }
 
 
