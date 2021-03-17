@@ -70,7 +70,7 @@ int execute(){
 int run(){
     
 
-    init(4096);
+    init(7168);
 
     printf("%s:", path);
 

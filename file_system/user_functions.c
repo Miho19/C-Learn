@@ -18,7 +18,7 @@ int ls() {
     inode root_ionde;
     direntry *dir;
 
-    int root_number_of_files;
+    
     int i;
 
     char *path_split[MAX_FILE_AMOUNT];
@@ -31,20 +31,22 @@ int ls() {
     inode current_inode;
     int current_inode_number_of_files;
 
-    root_number_of_files = 0;
+    
     items_split = 0;
     path_split_index = 0;
     current_inode_number_of_files = 0;
 
     superblock_get(&s);
-    root_number_of_files = root_inode_get(&s, &root_ionde, &dir);
+    current_inode_number_of_files = root_inode_get(&s, &root_ionde, &dir);
 
     if(strcmp(path, "/") == 0) {
-        print_list_inodes(dir + 2, root_number_of_files - 2);
+        print_list_inodes(dir + 2, current_inode_number_of_files - 2);
         goto exit;
     }
 
     items_split = split_path(path_split, path, strlen(path));
+
+
 
     /** ignore root / */
     path_split_index = 1;
@@ -52,24 +54,30 @@ int ls() {
     current_inode = root_ionde;
 
     while(path_split_index < items_split) {
-        current_inode_number_of_files = current_inode.file_size / sizeof(direntry);
+        
+
         for(i=0;i<current_inode_number_of_files;i++){
-            if(strcmp(path_split[path_split_index], dir[i].name) == 0)
-            break;
+            if(strcmp(path_split[path_split_index], dir[i].name) == 0) {
+                break;
+            }
         }
 
         inode_fetch(&s, &current_inode, dir[i].inode_number);
+        current_inode_number_of_files = current_inode.file_size / sizeof(direntry);
+        fseek(f, current_inode.data_index * BLOCK_SIZE, 0);
+        fread(dir, sizeof(direntry), current_inode_number_of_files, f);
         path_split_index++;
 
     }
 
-    
+    memset(dir, 0 ,sizeof(direntry) * MAX_FILE_AMOUNT);
+
     current_inode_number_of_files = current_inode.file_size / sizeof(direntry);
     fseek(f, current_inode.data_index * BLOCK_SIZE, 0);
     fread(dir, sizeof(direntry), current_inode_number_of_files, f);
 
     
-    print_list_inodes(dir + 2, current_inode_number_of_files - 2);
+    print_list_inodes(dir, current_inode_number_of_files);
 
 
     exit:
@@ -455,7 +463,7 @@ int cd(sequence *dir_name){
                 continue;
             }
 
-            new_path_split[new_path_split_index] = malloc(strlen(dirname_split[split_index]));
+            new_path_split[new_path_split_index] = malloc(strlen(dirname_split[split_index] + 1));
             strcpy(new_path_split[new_path_split_index], dirname_split[split_index]);
 
             current_inode_number_of_files = current_inode.file_size / sizeof(direntry);
@@ -490,6 +498,8 @@ int cd(sequence *dir_name){
         temp_path[temp_path_index++] = '/';
     }
 
+    temp_path[temp_path_index++] = '\0';
+
     strcpy(path, temp_path);
 
 
@@ -512,147 +522,110 @@ int cd(sequence *dir_name){
 
 int mkdir(sequence *dir_name) {
     int i;
-    int j;
-    int items_split;
-    int temp_index;
-    int path_length;
-    inode root_inode;
-    inode current_inode;
 
-    int current_dir_file_number;
-    int root_dir_file_number;
-    direntry *dir;
-    char temp[512];
-    
     superblock s;
+    inode root_inode;
 
-    char *path_split[MAX_FILE_AMOUNT];
+    inode current_inode;
+    inode parent_inode;
 
-    
-    path_length = 0;
-    path_length = strlen(path);
+    direntry *dir;
+    int current_inode_number_of_files;
+
+    char *dir_name_split[MAX_FILE_AMOUNT];
+    int items_split_dir_name;
+    int split_index_dir_name;
 
 
-    root_dir_file_number = 0;
-    dir = 0;
-    memset(temp, 0, sizeof(temp));
-    memset(path_split, 0, sizeof(path_split));
-    
+    current_inode_number_of_files = 0;
+    items_split_dir_name = 0;
+    split_index_dir_name = 0;
 
     superblock_get(&s);
+    current_inode_number_of_files = root_inode_get(&s, &root_inode, &dir);
+    items_split_dir_name = split_path(dir_name_split, dir_name->string, dir_name->length);
 
-    fseek(f, sizeof(superblock), 0 );                         /** root inode at index 0*/
-    fread(&root_inode, sizeof(inode), 1, f);
+    /** 
+     * Using full path e.g /new_directory/hello
+     * 
+    */
 
-    fseek(f, root_inode.data_index * BLOCK_SIZE, 0);
-    root_dir_file_number = root_inode.file_size / sizeof(direntry);
-    dir = malloc(sizeof(direntry) * MAX_FILE_AMOUNT);
-    fread(dir, sizeof(direntry), root_dir_file_number, f);
-
+    if(strcmp(dir_name_split[0], "/") == 0 && items_split_dir_name == 1)
+        goto exit;
     
-    if(path_length <= 1) {
-        inode_create_dir(&s,&root_inode, root_dir_file_number, dir_name->string);
-        return 0;
-    }
 
-    i = 1;
-    items_split = 0;
-    temp_index = 0;
+    if(strcmp(dir_name_split[0], "/") == 0) {
+        current_inode = root_inode;
+        parent_inode = root_inode;
 
-    while(i < path_length + 1) {
-        
-        if( i == (path_length) || path[i] == '/' || path[i] == '\0') {
-           temp[temp_index] = '\0';
-           path_split[items_split] = malloc(strlen(temp));
-           strcpy(path_split[items_split], temp);
-           memset(temp, 0, sizeof(temp));
-           temp_index = 0;
-           items_split++;
-           i++;
-           continue;
+        split_index_dir_name = 1;
+
+        while(split_index_dir_name < items_split_dir_name - 1){
+            
+            for(i=0;i<current_inode_number_of_files;i++){
+                if(strcmp(dir[i].name, dir_name_split[split_index_dir_name]) == 0)
+                    break;
+            }
+
+            if(i == current_inode_number_of_files) {
+                printf("%s is not a directory\n", dir_name_split[split_index_dir_name]);
+                goto exit;
+            }
+
+            if(strcmp(".", dir_name_split[split_index_dir_name]) == 0){
+                split_index_dir_name++;
+                continue;
+            }
+
+            if(strcmp(".", dir_name_split[split_index_dir_name]) == 0){
+                current_inode = parent_inode;
+                split_index_dir_name++;
+                continue;
+            }
+
+            parent_inode = current_inode;
+
+            inode_fetch(&s, &current_inode, dir[i].inode_number);
+
+            if(current_inode.type != directory){
+                printf("%s is not a directory\n", dir[i].name);
+                goto exit;
+            }
+
+            current_inode_number_of_files = current_inode.file_size / sizeof(direntry);
+
+            fseek(f, current_inode.data_index * BLOCK_SIZE, 0);
+            fread(dir, sizeof(direntry), current_inode_number_of_files, f);
+
+            split_index_dir_name++;
         }
-
-        temp[temp_index] = path[i]; 
-        temp_index++;
-        i++;
     }
 
-    
-
-    for(i=0;i<root_dir_file_number;i++){
-        if(strcmp(path_split[0], dir[i].name) == 0){
+    for(i=0;i<current_inode_number_of_files;i++){
+        if(strcmp(dir[i].name, dir_name_split[items_split_dir_name - 1]) == 0)
             break;
-        }
     }
 
-    if(i == root_dir_file_number){
-        printf("\"/%s\" is not a directory\n", path_split[0]);
-       goto exit;
-    }
-
-    fseek(f, s.index_inodes + ((sizeof(inode) * dir[i].inode_number)), 0);
-    fread(&current_inode, sizeof(inode), 1, f);
-
-    if(current_inode.type != directory){
-        printf("\"/%s\" is not a directory\n", path_split[0]);
+    if(i != current_inode_number_of_files) {
+        printf("%s is already a directory\n", dir_name_split[items_split_dir_name - 1]);
         goto exit;
     }
 
+
     
 
-    current_dir_file_number = 0;
-    current_dir_file_number = current_inode.file_size / sizeof(direntry);
-    j = 1;
+    inode_create_dir(&s, &current_inode, current_inode_number_of_files, dir_name_split[items_split_dir_name - 1]);
 
-
-    while(j < items_split) {
-        
-        fseek(f, (current_inode.data_index * BLOCK_SIZE), 0 );
-        memset(dir, 0, (sizeof(direntry) * MAX_FILE_AMOUNT));
-        fread(dir, sizeof(direntry), current_dir_file_number,f);
-
-        for(i=0;i<current_dir_file_number;i++){
-            if(strcmp(path_split[j], dir[i].name) == 0){
-                fseek(f, s.index_inodes + (sizeof(inode) * dir[i].inode_number),0);
-                fread(&current_inode, sizeof(inode), 1, f);
-                break;
-            }
-        }
-
-        if(i == current_dir_file_number){
-            printf("\"");
-            for(i=0;i<j+1;i++){
-                printf("/%s", path_split[i]);
-            }
-            printf("/\" is not a directory\n");
-            goto exit;
-        }
-
-        if(current_inode.type != directory){
-            printf("\"");
-            for(i=0;i<j;i++){
-                printf("\"/%s", path_split[i]);
-            }
-            printf("/\" is not a directory\n");
-            goto exit;
-        }
-        current_dir_file_number = current_inode.file_size / sizeof(direntry);
-        j++;
-    }
-    printf("stoppping execution until cd is made\n");
-    exit(0);
-    inode_create_dir(&s,&current_inode, current_dir_file_number, dir_name->string);
 
 
     exit:
-    for(i = 0;i<30;i++){
-        if(path_split[i] != 0)
-            free(path_split[i]);
-    }
-
+    free(dir);
+    for(i=0;i<items_split_dir_name;i++)
+        free(dir_name_split[i]);
+        
 
     return 0;
 }
 
-/** printf("%d | %d | %c \n", i, path[i], path[i]);*/
+
 

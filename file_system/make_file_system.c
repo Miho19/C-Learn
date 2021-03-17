@@ -266,7 +266,6 @@ int inode_create_dir(superblock *s, inode *parent, int parent_num_files, const c
 
     temp_dir.inode_number = new_inode.inode_number;
     strcpy(temp_dir.name, ".");
-
     fseek(f, new_inode.data_index * BLOCK_SIZE, 0);
     fwrite(&temp_dir, sizeof(direntry), 1, f);
 
@@ -284,7 +283,6 @@ int inode_create_dir(superblock *s, inode *parent, int parent_num_files, const c
     parent->file_size += sizeof(temp_dir);
 
     inode_update(parent);
-
 
     free(list);
 
@@ -321,6 +319,7 @@ int inode_file_data_commit(superblock *s, inode *l) {
 
     if(block >= (int)(sizeof(unsigned char) * 8)){
         printf("No free data blocks %d\n",block);
+        exit(0);
         return -1;
     }
 
