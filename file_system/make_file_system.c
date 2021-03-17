@@ -394,7 +394,7 @@ int split_path(char **dest, const char *source, int length){
     memset(temp, 0, sizeof(temp));
 
     if(source[source_index] == '/'){
-        dest[items_split] = malloc(sizeof(char) + 1);
+        dest[items_split] = malloc(sizeof(char) * 2);
         strcpy(dest[items_split], "/");
         items_split++;
         source_index++;
