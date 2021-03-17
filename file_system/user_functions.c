@@ -5,7 +5,7 @@ extern void superblock_get(superblock *s);
 extern int file_create(user_file *file, inode *l);
 extern int inode_update(inode *l);
 extern int inode_create_dir(superblock *s, inode *parent, int parent_num_files, const char *name);
-
+extern int split_path(char **dest, const char *source, int length);
 /** Command only */
 
 int ls() {
@@ -353,6 +353,9 @@ int cd(sequence *dir_name){
     root_dir_file_number = root_inode.file_size / sizeof(direntry);
     dir = malloc(sizeof(direntry) * MAX_FILE_AMOUNT);
     fread(dir, sizeof(direntry), root_dir_file_number, f);
+
+    
+
     
     /** printf("%d %d %c\n", i, dir_name->string[i],dir_name->string[i]);*/
     path_length = 0;
@@ -365,43 +368,15 @@ int cd(sequence *dir_name){
     current_inode_file_number = 0;
     name_length = 0;
 
-    if(dir_name->string[0] == '/') {
-        strcpy(temp, "/");
-        dirname_split[items_dirname_split] = malloc(strlen(temp));
-        strcpy(dirname_split[items_dirname_split], temp);
-        items_dirname_split++;
-        i++;
-    }
+    items_dirname_split = split_path(dirname_split, dir_name->string, dir_name->length);
 
-  
 
-    while(i < dir_name->length) {
-        
-        if( i == (dir_name->length) || dir_name->string[i] == '/' || dir_name->string[i] == '\0') {
-           
-           temp[temp_index] = '\0';
-           dirname_split[items_dirname_split] = malloc(strlen(temp));
-           
-           strcpy(dirname_split[items_dirname_split], temp);
-           
-           memset(temp, 0, sizeof(temp));
-           temp_index = 0;
-           items_dirname_split++;
-           i++;
-           continue;
-        }
-
-        temp[temp_index] = dir_name->string[i]; 
-        temp_index++;
-        i++;
-    }
-/**
     for(i=0;i<items_dirname_split;i++){
         printf("%d:%s\n", strlen(dirname_split[i]), dirname_split[i]);
-        
     }
 
-  */
+ 
+    exit(0);
 
     if(strcmp(dirname_split[0], "/") == 0){
 

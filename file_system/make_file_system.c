@@ -379,6 +379,55 @@ int file_commit_write(user_file *file, inode *l) {
 
 
 
+int split_path(char **dest, const char *source, int length){
+
+    int items_split;
+    int source_index;
+    int temp_index;
+    int i;
+
+    char temp[512];
+
+    source_index = 0;
+    items_split = 0;
+    temp_index = 0;
+    memset(temp, 0, sizeof(temp));
+
+    if(source[source_index] == '/'){
+        dest[items_split] = malloc(sizeof(char) + 1);
+        strcpy(dest[items_split], "/");
+        items_split++;
+        source_index++;
+    }
+
+    while(source_index < length) {
+
+        if(source_index == length || source[source_index] == '/' || source[source_index] == '\0'){
+            temp[temp_index] = '\0';
+            dest[items_split] = malloc(temp_index + 1);
+            strcpy(dest[items_split], temp);
+            memset(temp, 0 , sizeof(temp));
+            temp_index = 0;
+            items_split++;
+            source_index++;
+            continue;
+        }
+
+        temp[temp_index] = source[source_index];
+        source_index++;
+        temp_index++;
+    }
+
+
+    return items_split;
+
+
+}
+
+
+
+
+
 
 
 
