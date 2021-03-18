@@ -77,7 +77,7 @@ int ls() {
     fread(dir, sizeof(direntry), current_inode_number_of_files, f);
 
     
-    print_list_inodes(dir, current_inode_number_of_files);
+    print_list_inodes(dir + 2, current_inode_number_of_files - 2);
 
 
     exit:
@@ -368,8 +368,6 @@ int file_write(sequence *file_name, sequence *file_data, int mode){
 
 
 
-
-
 int cd(sequence *dir_name){
 
     int i;
@@ -403,11 +401,20 @@ int cd(sequence *dir_name){
     new_path_split_index = 0;
     current_inode_number_of_files = 0;
     name_length = 0;
+    items_dirname_split = 0;
+    memset(temp_path, 0, sizeof(temp_path));
   
     
     superblock_get(&s);
     current_inode_number_of_files = root_inode_get(&s,&root_inode, &dir);
-    items_dirname_split = split_path(dirname_split, dir_name->string, dir_name->length);
+
+    if(dir_name->string[0] == '/') {
+        items_dirname_split = split_path(dirname_split, dir_name->string, dir_name->length);
+    } else {
+        strcpy(temp_path, path);
+        strcpy(temp_path + (strlen(path)), dir_name->string);
+        items_dirname_split = split_path(dirname_split, temp_path, strlen(temp_path) + 1);
+    }
 
 
     if(strcmp(dirname_split[0], "/") == 0 && items_dirname_split == 1) {
@@ -536,19 +543,25 @@ int mkdir(sequence *dir_name) {
     int items_split_dir_name;
     int split_index_dir_name;
 
+    char temp_path[512];
+
 
     current_inode_number_of_files = 0;
     items_split_dir_name = 0;
     split_index_dir_name = 0;
+    memset(temp_path,0,sizeof(temp_path));
+
 
     superblock_get(&s);
     current_inode_number_of_files = root_inode_get(&s, &root_inode, &dir);
-    items_split_dir_name = split_path(dir_name_split, dir_name->string, dir_name->length);
 
-    /** 
-     * Using full path e.g /new_directory/hello
-     * 
-    */
+    if(dir_name->string[0] == '/') {
+        items_split_dir_name = split_path(dir_name_split, dir_name->string, dir_name->length);
+    } else {
+        strcpy(temp_path, path);
+        strcpy(temp_path + (strlen(path)), dir_name->string);
+        items_split_dir_name = split_path(dir_name_split, temp_path, strlen(temp_path) + 1);
+    }
 
     if(strcmp(dir_name_split[0], "/") == 0 && items_split_dir_name == 1)
         goto exit;
