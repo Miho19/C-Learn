@@ -27,11 +27,8 @@ command_only list_file_command_only[] = {
 
 file_request list_file_command_name[] = {
     {"create", file_create},
-    {"close", NULL},
     {"cat", cat},
-    {"mkdir", mkdir},
     {"cd", cd}
-    
 };
 
 data_request list_file_command_name_data[] =  {
@@ -39,6 +36,11 @@ data_request list_file_command_name_data[] =  {
 };
 
 int execute(){
+   int i;
+   int items_split;
+   char *path_split[MAX_FILE_AMOUNT];
+
+   items_split = 0;
    
 
     if(rq->type == PENDING)
@@ -46,14 +48,23 @@ int execute(){
 
     if(rq->command_index == -1)
         return -1;
+
+
+    
     
     if(rq->type == COMMAND_ONLY) {
         list_file_command_only[rq->command_index].command_function();
         return 0;
     }
 
+    items_split = path_convert_to_full_path(rq->file_name, path_split);
+
+   if(items_split < 2)
+        return -1;
+
     if(rq->type == FILE_REQUEST) {
-        list_file_command_name[rq->command_index].file_function(rq->file_name);
+        list_file_command_name[rq->command_index].file_function(path_split, items_split);
+        
         return 0;
     }
 
@@ -62,7 +73,11 @@ int execute(){
         return 0;
     }
 
-
+    for(i=0;i<items_split;i++){
+        if(path_split[i])
+            free(path_split[i]);
+    }
+    
     return 0;
 }
 
@@ -77,6 +92,7 @@ int run(){
 
     while(!quit){
         input();
+        
         execute();
         display();
     }

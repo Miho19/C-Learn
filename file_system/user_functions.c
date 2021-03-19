@@ -112,7 +112,7 @@ int superblock_print(){
 
 /** File requests */
 
-int file_create(sequence *file_name){
+int file_create(char **path_split, int items_split){
 
     int i;
 
@@ -123,20 +123,12 @@ int file_create(sequence *file_name){
     inode current_inode;
     
 
-    char *path_split[MAX_FILE_AMOUNT];
-    int items_split_number;
-    
-
     char *path_returned_split[MAX_FILE_AMOUNT];
     int items_returned_split;
 
-
-
     char temp_path[512];
 
-    items_split_number = 0;
-    
-   
+
     memset(temp_path, 0 , sizeof(temp_path));
     items_returned_split = 0;
     current_inode_number_of_files = 0;
@@ -145,48 +137,36 @@ int file_create(sequence *file_name){
 
     superblock_get(&s);
 
-    if(file_name->string[0] != '/'){
-        strcpy(temp_path, path);
-        strcpy(temp_path + (strlen(path)), file_name->string);
-        items_split_number = split_path(path_split, temp_path, strlen(temp_path) + 1);
-    } else {
-        items_split_number = split_path(path_split, file_name->string, file_name->length);
-    }
-
-    
-
-    if(items_split_number == 0)
-        goto exit;
+   
 
     current_inode_number_of_files = root_inode_get(&s, &current_inode, &dir);
 
-    if( (items_split_number - 1) > 1 ) {
-        current_inode_number_of_files = path_get_inode(&s, path_split, items_split_number - 1, path_returned_split, &items_returned_split, &current_inode, &dir);
+    if( (items_split - 1) > 1 ) {
+        current_inode_number_of_files = path_get_inode(&s, path_split, items_split - 1, path_returned_split, &items_returned_split, &current_inode, &dir);
     }
 
-    if(strcmp(path_split[items_split_number - 1], ".") == 0 || strcmp(path_split[items_split_number - 1], "..") == 0) {
+    if(strcmp(path_split[items_split - 1], ".") == 0 || strcmp(path_split[items_split - 1], "..") == 0) {
        goto exit;
     }
 
     for(i=0;i<current_inode_number_of_files;i++){
-        if(strcmp(dir[i].name, path_split[items_split_number - 1]) == 0)
+        if(strcmp(dir[i].name, path_split[items_split - 1]) == 0)
             break;
     }
 
     if(i != current_inode_number_of_files){
-        printf("%s already exists\n", path_split[items_split_number - 1]);
+        printf("%s already exists\n", path_split[items_split - 1]);
         goto exit;
     }
 
     
-    inode_create_text_file(&s, &current_inode, current_inode_number_of_files, path_split[items_split_number - 1]);
+    inode_create_text_file(&s, &current_inode, current_inode_number_of_files, path_split[items_split - 1]);
 
 
     exit:
 
     free(dir);
-    for(i=0;i<items_split_number;i++)
-        free(path_split[i]);
+
     for(i=0;i<items_returned_split;i++)
         free(path_returned_split[i]);
     
@@ -197,15 +177,12 @@ int file_create(sequence *file_name){
 
 
 
-int cat(sequence *file_name) {
+int cat(char **path_split, int items_split) {
     int i;
     superblock s;
     
     direntry *dir;
 
-    char *path_split[MAX_FILE_AMOUNT];
-    int items_split;
-    
     char *path_returned_split[MAX_FILE_AMOUNT];
     int items_returned_split;
 
@@ -214,28 +191,12 @@ int cat(sequence *file_name) {
 
     char temp_path[512];
 
-    items_split = 0;
     items_returned_split = 0;
     current_inode_file_number = 0;
     superblock_get(&s);
     memset(temp_path, 0, sizeof(temp_path));
 
-    if(file_name->string[0] != '/') {
-        strcpy(temp_path, path);
-        strcpy(temp_path + (strlen(path)), file_name->string);
-        items_split = split_path(path_split, temp_path, strlen(temp_path) + 1);
-    } else {
-        items_split = split_path(path_split, file_name->string, file_name->length);
-    }
-
-    if(items_split == 0) {
-         goto exit;
-    }
-
-    if(items_split == 1)
-        goto exit;
-
-
+    
 
     if(items_split > 2) {
         current_inode_file_number = path_get_inode(&s, path_split, items_split - 1, path_returned_split,&items_returned_split, &current_inode, &dir);
@@ -280,8 +241,6 @@ int cat(sequence *file_name) {
 
     exit:
 
-    for(i=0;i<items_split;i++)
-        free(path_split[i]);
 
     for(i=0;i<items_returned_split;i++)
         free(path_returned_split[i]);
@@ -303,162 +262,83 @@ int file_write(sequence *file_name, sequence *file_data, int mode){
 
 
 
-int cd(sequence *dir_name){
+int cd(char **path_split, int items_split){
 
     int i;
     int j;
 
-
-    direntry *dir;
-    inode root_inode;
     superblock s;
+    int current_inode_file_number;
 
+    char *path_returned_split[MAX_FILE_AMOUNT];
     inode current_inode;
-    inode parent_inode;
+    direntry *dir;
+    int items_returned_split;
 
-    int current_inode_number_of_files;
-    int name_length;
-    
+    char temp[512];
+    int temp_index;
+    int item_length;
 
-    int split_index;
-    int items_dirname_split;
-    char *dirname_split[MAX_FILE_AMOUNT];
+    current_inode_file_number = 0;
+    items_returned_split = -1;
+    item_length = 0;
+    temp_index = 0;
 
-    char *new_path_split[MAX_FILE_AMOUNT];
-    int new_path_split_index;
+    memset(temp, 0, sizeof(temp));
 
-    char temp_path[512];
-    int temp_path_index;
-
-    
-    i = 0;
-    split_index = 0;
-    new_path_split_index = 0;
-    current_inode_number_of_files = 0;
-    name_length = 0;
-    items_dirname_split = 0;
-    memset(temp_path, 0, sizeof(temp_path));
-  
-    
     superblock_get(&s);
-    current_inode_number_of_files = root_inode_get(&s,&root_inode, &dir);
 
 
-    if(dir_name->string[0] == '/') {
-        items_dirname_split = split_path(dirname_split, dir_name->string, dir_name->length);
+    if(items_split > 2) {
+        current_inode_file_number = path_get_inode(&s, path_split, items_split, path_returned_split,&items_returned_split, &current_inode, &dir);
     } else {
-        strcpy(temp_path, path);
-        strcpy(temp_path + (strlen(path)), dir_name->string);
-        items_dirname_split = split_path(dirname_split, temp_path, strlen(temp_path) + 1);
+        current_inode_file_number = root_inode_get(&s, &current_inode, &dir);
     }
 
-
-    if(strcmp(dirname_split[0], "/") == 0 && items_dirname_split == 1) {
+    if( (strcmp(".", path_split[items_split -1]) == 0 || strcmp("..", path_split[items_split -1]) == 0) && items_returned_split == -1) {
         strcpy(path, "/");
         goto exit;
     }
 
-    /** Given full path e.g cd /new_directory/usr/temp */
-    
-    new_path_split[new_path_split_index] = malloc(sizeof(char) * 2);
-    strcpy(new_path_split[new_path_split_index++], "/");
-    split_index++;
+    temp[temp_index++] = '/';
 
-    current_inode = root_inode;
-    parent_inode = current_inode;
-
-    if(strcmp(dirname_split[0], "/") == 0) {
-        
-
-        while(split_index < items_dirname_split) {
-
-            
-
-            for(i=0;i<current_inode_number_of_files;i++){
-                if(strcmp(dir[i].name, dirname_split[split_index]) == 0)
-                    break;
-            }
-
-            if(i == current_inode_number_of_files) {
-                printf("%s is not a directory\n", dirname_split[split_index]);
-                goto exit;
-            }
-
-            parent_inode = current_inode;
-
-            inode_fetch(&s, &current_inode, dir[i].inode_number);
-
-            if(current_inode.type != directory) {
-                printf("%s is not a directory\n", dirname_split[split_index]);
-                goto exit;
-            }
-
-            if(strcmp(".", dirname_split[split_index]) == 0 ) {
-                split_index++;
-                continue;
-            }
-
-            if(strcmp("..", dirname_split[split_index]) == 0 ) {
-                current_inode = parent_inode;
-                
-                split_index++;
-                new_path_split_index--;
-                continue;
-            }
-
-            new_path_split[new_path_split_index] = malloc(strlen(dirname_split[split_index] + 1));
-            strcpy(new_path_split[new_path_split_index], dirname_split[split_index]);
-
-            current_inode_number_of_files = current_inode.file_size / sizeof(direntry);
-            
-
-            fseek(f, current_inode.data_index * BLOCK_SIZE, 0);
-            fread(dir, sizeof(direntry), current_inode_number_of_files, f);
-            
-            
-            split_index++;
-            new_path_split_index++;
-
-
+    if(items_returned_split == -1) {
+        for(i=0;i<current_inode_file_number;i++){
+            if(strcmp(dir[i].name, path_split[items_split -1]) == 0)
+            break;
         }
-    
-       
+        if(i == current_inode_file_number){
+            printf("%s is not a directory\n", path_split[items_split -1]);
+            goto exit;
+        }
+        strcpy(temp + temp_index, path_split[items_split -1]);
+        temp_index += strlen(path_split[items_split -1]);
+        temp[temp_index++] = '/';
+        temp[temp_index] = '\0';
+        strcpy(path, temp);
+        goto exit;
     }
 
-
-
-
-
-    temp_path[0] = '/';
-
-    for(i=1, temp_path_index = 1 ;i<new_path_split_index;i++){
-        name_length = strlen(new_path_split[i]);
-
-        for(j=0;j<name_length;j++, temp_path_index++){
-            temp_path[temp_path_index] = new_path_split[i][j];
+    for(i=1;i<items_returned_split;i++) {
+        item_length = strlen(path_returned_split[i]);
+        for(j=0;j<item_length;j++, temp_index++){
+            temp[temp_index] = path_returned_split[i][j];
         }
-
-        temp_path[temp_path_index++] = '/';
+        temp[temp_index++] = '/';
     }
 
-    temp_path[temp_path_index++] = '\0';
+    temp[temp_index] = '\0';
 
-    strcpy(path, temp_path);
+    strcpy(path, temp);
 
 
     exit:
-    free(dir);
-    for(i=0;i<items_dirname_split;i++)
-        free(dirname_split[i]);
-    
-    for(i=0;i<MAX_FILE_AMOUNT;i++){
-        if(new_path_split[i]){
-            free(new_path_split[i]);
-        }
-    }
-    
 
-  
+    free(dir);
+
+    for(i=0;i<items_returned_split;i++){
+        free(path_returned_split[i]);
+    }
 
     return 0;
 }

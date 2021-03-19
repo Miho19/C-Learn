@@ -106,7 +106,7 @@ void file_system_make(void) {
     s.MAX_INODE_NUMBER = (BLOCK_SIZE / sizeof(inode));
     s.index_inode = 1;
     s.index_bitmap = 2;
-    s.index_data = 4;
+    s.index_data = 3;
 
 
     superblock_update(&s);
@@ -142,6 +142,8 @@ void file_system_make(void) {
 
     for(i=0;i<4;i++)
         bitblock |= 1 << i;
+    
+        
 
     fwrite(&bitblock, sizeof(unsigned char), 1, f);
 
@@ -410,11 +412,15 @@ int root_inode_get(superblock *s, inode *root, direntry **file_list){
     int number_of_files;
 
     number_of_files = 0;
+
     
-    fseek(f, s->index_inode * BLOCK_SIZE, 0);
+    
+    fseek(f, (s->index_inode * BLOCK_SIZE), 0);
     fread(root, sizeof(inode), 1, f);
 
     number_of_files = root->file_size / sizeof(direntry);
+
+    
 
     fseek(f, root->data_index * BLOCK_SIZE, 0);
 
@@ -449,6 +455,7 @@ int inode_fetch(superblock *s, inode *l, int inode_number) {
 int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *dst_items, inode *l, direntry **file_list){
 
     int i;
+    int index;
 
     inode root_inode;
     direntry *dir;
@@ -487,6 +494,9 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
         }
 
         if(i == current_inode_number_of_files) {
+            for(index=1;index<dst_index;index++){
+                printf("/%s", dst[index]);
+            }
             printf("%s is not a directory\n", src[src_index]);
             goto exit;
         }
@@ -496,6 +506,9 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
         inode_fetch(s, &current_inode, dir[i].inode_number);
 
         if(current_inode.type != directory) {
+            for(index=1;index<dst_index;index++){
+                printf("/%s", dst[index]);
+            }
             printf("%s is not a directory\n", src[src_index]);
             goto exit;
         }
@@ -550,3 +563,32 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
 
 
 
+int path_convert_to_full_path(sequence *user_path, char **path_split) {
+
+    char temp[512];
+    int items_split;
+    int i;
+
+    items_split = 0;
+
+    if(user_path->string[0] != '/') {
+        memset(temp, 0, sizeof(temp));
+        strcpy(temp, path);
+        strcpy(temp + strlen(path), user_path->string);
+        items_split = split_path(path_split, temp, strlen(temp) + 1);
+    } else {
+        items_split = split_path(path_split, user_path->string, user_path->length);
+    }
+
+    
+
+  
+
+
+    if(items_split == 1)
+        items_split = 0;
+
+    
+    
+    return items_split;
+}

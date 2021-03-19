@@ -83,9 +83,10 @@ typedef struct command_only {
     int (*command_function)(void);
 } command_only;
 
+
 typedef struct file_request {
     char *command_name;
-    int (*file_function)(sequence *file_name);
+    int (*file_function)(char **path_split, int items_split);
 } file_request;
 
 typedef struct data_request {
@@ -131,16 +132,21 @@ int open_files_print_all(void);
 
 /** file request */
 
-int file_create(sequence *file_name);
-int cat(sequence *file_name);
+int file_create(char **path_split, int items_split);
+int cat(char **path_split, int items_split);
+
 
 /** Dir request */
 int mkdir(sequence *dir_name);
-int cd(sequence *dir_name);
+int cd(char **path_split, int items_split);
 
 
 /** data request */
 int file_write(sequence *file_name, sequence *file_data, int mode);
+
+
+
+int path_convert_to_full_path(sequence *user_path, char **path_split);
 
 
 
