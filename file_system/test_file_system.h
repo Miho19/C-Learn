@@ -23,7 +23,7 @@ extern int fd_counter;
 #define FILE_OVERWRITE 1
 
 #define MAX_FILE_NAME 14
-
+#define BITS_IN_A_BYTE 8
 
 /**
  *  first 24 bytes for superblock
@@ -32,11 +32,11 @@ extern int fd_counter;
 typedef struct superblock {
     int type;
     int size;
-    int number_of_blocks;
-    int index_inodes;
-    int number_inodes_max;
+    int MAX_INODE_NUMBER;
+    int index_inode;
+    int index_bitmap;
     int index_data;
-    unsigned char data_block_free_list;
+    
 } superblock;
 
 /**  24 */
@@ -70,13 +70,6 @@ typedef struct user_file {
     char *data;
     
 } user_file;
-
-typedef struct mem_inode {
-    int fd;
-    user_file *file;
-    inode *user_inode;
-} mem_inode;
-
 
 char *path;
 
@@ -138,7 +131,7 @@ int open_files_print_all(void);
 
 /** file request */
 
-int file_open(sequence *file_name);
+int file_create(sequence *file_name);
 int cat(sequence *file_name);
 
 /** Dir request */

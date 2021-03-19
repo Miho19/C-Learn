@@ -1,6 +1,6 @@
 #include "test_file_system.h"
 
-#define VERSION 2.0
+#define VERSION 3
 
 
 void file_system_make(void);
@@ -9,6 +9,7 @@ int ionde_get_list(inode *list, int off, int n);
 int file_commit_write(user_file *file, inode *l);
 int display_text(const char *data, int length);
 int inode_file_data_commit(superblock *s, inode *l);
+int superblock_update(superblock *s);
 
 
 /*** 
@@ -22,13 +23,10 @@ int BUFFER_SIZE = 4096;
 
 int fd_counter = 0;
 
-mem_inode *mem_inode_list[MAX_FILE_AMOUNT];
-
-
 
 void init(int size){
     superblock s;
-    int i;
+    
     BUFFER_SIZE = size;
     
     f = fopen("output.txt", "r+b");
@@ -40,7 +38,7 @@ void init(int size){
        superblock_get(&s);
 
        if(s.type != VERSION) {
-           printf("error creating superblock\n");
+           printf("Creating version %d but found version %d of superblock \n",VERSION, s.type);
            exit(1);
        }
    }
@@ -59,38 +57,10 @@ void init(int size){
    rq->status = 0;
 
 
-   
-
-   
-
-   
-    for(i=0;i<MAX_FILE_AMOUNT;i++)
-        mem_inode_list[i] = 0;
 }
 
 void destroy(void) {
-    int i;
-
-    for(i=0;i<MAX_FILE_AMOUNT;i++) {
-        if(mem_inode_list[i]){
-
-            file_commit_write(mem_inode_list[i]->file,mem_inode_list[i]->user_inode);
-
-            if(mem_inode_list[i]->file->name)
-                free(mem_inode_list[i]->file->name);
-
-            if(mem_inode_list[i]->file->data)
-                free(mem_inode_list[i]->file->data);
-
-            if(mem_inode_list[i]->user_inode)
-                free(mem_inode_list[i]->user_inode);
-
-            free(mem_inode_list[i]->file);
-            free(mem_inode_list[i]);
-        }
-
-
-    }
+    
 
     if(rq->file_command)
         free(rq->file_command->string);
@@ -106,68 +76,84 @@ void destroy(void) {
 }
 
 
-
+/**
+ *  0 superblock 
+ *  1 inode list
+ *  2 bit map
+ *  3 root inode data block
+ *  4 start of data blocks for files / dir 
+ * 
+ * */
 
 
 void file_system_make(void) {
 
-    int i;
-    inode l;
-    superblock *s;
+    superblock s;
+
+    inode root_inode;
     direntry dir;
-    s = malloc(sizeof(*s));
+
+    unsigned char temp[512];
+
+    unsigned char bitblock;
+
+    int i;
+    bitblock = 0;
+    memset(temp, 0, sizeof(temp));
+
+    s.type = VERSION;
+    s.size = BUFFER_SIZE;
+    s.MAX_INODE_NUMBER = (BLOCK_SIZE / sizeof(inode));
+    s.index_inode = 1;
+    s.index_bitmap = 2;
+    s.index_data = 4;
+
+
+    superblock_update(&s);
 
     
-   
-    s->type = VERSION;
-    s->size = BUFFER_SIZE;
-    s->number_of_blocks = (BUFFER_SIZE / BLOCK_SIZE);
-    s->index_inodes = sizeof(superblock);
-    s->index_data = BLOCK_SIZE;
-    s->number_inodes_max = (BLOCK_SIZE - sizeof(superblock)) / sizeof(inode);
-    s->data_block_free_list = 0;
 
-    s->data_block_free_list |= 1 << 0;
-    s->data_block_free_list |= 1 << 1;
-
-    fseek(f, 0, 0);
-    fwrite(s, sizeof(superblock), 1, f);
+    root_inode.data_index = 0;
+    root_inode.file_size = 0;
+    root_inode.inode_number = 0;
+    root_inode.type = text_file;
+    root_inode.used = 0;
     
- 
+    fseek(f, BLOCK_SIZE * 1, 0);
 
-    for(i=0;i<s->number_inodes_max;i++){
-        l.data_index = 0;
-        l.file_size = 0;
-        l.inode_number = i;
-        l.used = 0;
-        l.type = text_file;
-        fwrite(&l, sizeof(inode), 1, f);
+    for(i=0;i<s.MAX_INODE_NUMBER;i++){
+        root_inode.inode_number = i;
+        fwrite(&root_inode, sizeof(inode), 1, f);
     }
 
-    l.data_index = 1;
-    l.inode_number = 0;
-    l.used = 1;
-    l.type = directory;
-    l.file_size = (sizeof(dir) * 2);
+    fseek(f, BLOCK_SIZE * 1, 0);
+    root_inode.inode_number = 0;
+    root_inode.file_size = sizeof(direntry) * 2;
+    root_inode.type = directory;
+    root_inode.used = 1;
+    root_inode.data_index = 3;
 
-    fseek(f, sizeof(superblock), 0);
-    fwrite(&l,sizeof(inode), 1, f);
+    fwrite(&root_inode, sizeof(inode), 1, f);
+
+    fseek(f, BLOCK_SIZE * 2, 0);
+    fwrite(temp, sizeof(unsigned char), BLOCK_SIZE, f);
+
+    fseek(f, BLOCK_SIZE * 2, 0);
+
+    for(i=0;i<4;i++)
+        bitblock |= 1 << i;
+
+    fwrite(&bitblock, sizeof(unsigned char), 1, f);
 
 
-    dir.inode_number = l.inode_number;
+    dir.inode_number = 0;
     strcpy(dir.name, ".");
-
-    fseek(f, (l.data_index * BLOCK_SIZE), 0);
-    fwrite(&dir, sizeof(dir), 1, f);
-
-
-    dir.inode_number = l.inode_number;
+    fseek(f, BLOCK_SIZE * 3, 0);
+    fwrite(&dir, sizeof(direntry), 1, f);
     strcpy(dir.name, "..");
-    fseek(f, (l.data_index * BLOCK_SIZE) + sizeof(direntry), 0);
-    fwrite(&dir, sizeof(dir), 1, f);
+    fwrite(&dir, sizeof(direntry), 1, f);
 
     
-    free(s);
 }
 
 void superblock_get(superblock *s) {
@@ -179,10 +165,11 @@ void superblock_get(superblock *s) {
 int inode_update(inode *i) {
     superblock s;
     superblock_get(&s);
-    fseek(f, (s.index_inodes + (i->inode_number * sizeof(*i) )), 0);
-    return fwrite(i, sizeof(*i), 1, f);
 
+    fseek(f, (s.index_inode * BLOCK_SIZE) + (i->inode_number * sizeof(inode) ), 0);
+    return fwrite(i, sizeof(inode), 1, f);
 }
+
 int superblock_update(superblock *s) {
     fseek(f, 0, 0);
     return fwrite(s, sizeof(superblock), 1, f);
@@ -194,12 +181,15 @@ int inode_create(superblock *s, inode *l) {
     int result;
     int i;
 
-    list = malloc(sizeof(*list) * s->number_inodes_max);
+
+    list = malloc(sizeof(*list) * s->MAX_INODE_NUMBER);
     
+
     result = 0;
-    fseek(f, s->index_inodes, 0);
-    result = fread(list, sizeof(inode), s->number_inodes_max, f);                   /** Get entire list of inodes */
-    if(result != s->number_inodes_max) {
+    fseek(f, (s->index_inode * BLOCK_SIZE), 0);
+
+    result = fread(list, sizeof(inode), s->MAX_INODE_NUMBER, f);                   /** Get entire list of inodes */
+    if(result != s->MAX_INODE_NUMBER) {
         printf("Inode list incomplete\n");
     }
 
@@ -213,7 +203,7 @@ int inode_create(superblock *s, inode *l) {
         l->inode_number = -1;
         goto end;
     }
-    
+
     l->data_index = 0;                                                             /** init the inode */
     l->file_size = 0;
     l->inode_number = list[i].inode_number;
@@ -236,31 +226,15 @@ int inode_create(superblock *s, inode *l) {
 */
 
 int inode_create_dir(superblock *s, inode *parent, int parent_num_files, const char *name) {
-    inode *list;
+    
     direntry temp_dir;
     inode new_inode;
-    int i;
+    
 
-    list = malloc(sizeof(inode) * s->number_inodes_max);
-    fseek(f,s->index_inodes, 0);
-    fread(list, sizeof(inode), s->number_inodes_max, f);
+    inode_create(s, &new_inode);
 
-    for(i=0;i<s->number_inodes_max;i++){
-       if(list[i].used == 0) 
-            break;
-    }
-
-    if(i == s->number_inodes_max){
-        printf("reached maxed size of file system\n");
-        exit(0);
-    }
-
-    new_inode.data_index = 0;
-    new_inode.file_size = sizeof(direntry) * 2;
-    new_inode.inode_number = i;
     new_inode.type = directory;
-    new_inode.used = 1;
-
+    new_inode.file_size = sizeof(direntry) * 2;
 
     inode_file_data_commit(s, &new_inode);
 
@@ -284,9 +258,29 @@ int inode_create_dir(superblock *s, inode *parent, int parent_num_files, const c
 
     inode_update(parent);
 
-    free(list);
+    
 
     return 0;
+}
+
+int inode_create_text_file(superblock *s, inode *parent, int parent_num_files, const char *name){
+    direntry temp_dir;
+    inode new_inode;
+
+    inode_create(s, &new_inode);
+    inode_file_data_commit(s, &new_inode);
+
+    temp_dir.inode_number = new_inode.inode_number;
+    strcpy(temp_dir.name, name);
+
+    fseek(f, (parent->data_index * BLOCK_SIZE) + (sizeof(direntry) * parent_num_files), 0);
+    fwrite(&temp_dir, sizeof(direntry), 1, f);
+
+    parent->file_size += sizeof(temp_dir);
+    inode_update(parent);
+
+    return 0;
+
 }
 
 
@@ -310,72 +304,46 @@ int inode_create_dir(superblock *s, inode *parent, int parent_num_files, const c
 
 int inode_file_data_commit(superblock *s, inode *l) {
     int block;
+    int i;
+    unsigned char block_of_bits;
 
-    for(block=0;block<(int)(sizeof(unsigned char) * 8);block++){
-        if(!(s->data_block_free_list >> block) & 1){
-            break;
+    char temp[512];
+
+    block_of_bits = 0;
+
+    for(i=0;i<(int)(BLOCK_SIZE/sizeof(unsigned char));i++) {
+        fseek(f, (s->index_bitmap * BLOCK_SIZE) + (sizeof(unsigned char) * i),0);
+        fread(&block_of_bits, sizeof(unsigned char),1, f);
+
+        for(block = 0;block < (int)(sizeof(unsigned char) * BITS_IN_A_BYTE);block++) {
+            if(!(block_of_bits >> block) & 1){
+                goto exit_loop;
+            }
         }
     }
 
-    if(block >= (int)(sizeof(unsigned char) * 8)){
+    exit_loop:
+
+    if( i == (BLOCK_SIZE / sizeof(unsigned char))) {
         printf("No free data blocks %d\n",block);
-        exit(0);
         return -1;
     }
 
-    s->data_block_free_list |= 1 << block;                                      /** commit changes to superblock */
-    superblock_update(s);
+    memset(temp, 0, sizeof(temp));
     
-    l->data_index = block;                                                      /** update block field */
+    block = block + (i * sizeof(unsigned char));
+
+    block_of_bits |= 1 << block;
+
+    fseek(f, (s->index_bitmap * BLOCK_SIZE) + i,0 );
+    fwrite(&block_of_bits, sizeof(unsigned char), 1, f);
+
+    l->data_index = block;
+
     inode_update(l);
 
-    return 1;
+    return l->data_index;
 }
-
-
-int file_create(user_file *file, inode *l) {
-    superblock s;
-    int result;
-
-    result = 0;
-
-    superblock_get(&s);
-
-    result = inode_create(&s,l);
-
-    if(result < 0) {
-        printf("Error allocating inode\n");
-        return result;
-    }
-
-    printf("creating text file: %s\n", file->name);
-    result = inode_file_data_commit(&s, l);
-
-
-    if(result < 0) {
-        printf("error commiting to disk\n");
-    }
-
-    file->inode_number = l->inode_number;
-
-    return result;
-}
-
-int file_commit_write(user_file *file, inode *l) {
-   
-    if(file->data_length > BLOCK_SIZE) {
-        file->data_length = BLOCK_SIZE;
-    }
-    
-    l->file_size = file->data_length;
-    inode_update(l);
-
-    fseek(f, (l->data_index * BLOCK_SIZE), 0);
-    fwrite(file->data, sizeof(char), file->data_length, f);
-
-    return 1;
-}
-
 
 
 int split_path(char **dest, const char *source, int length){
@@ -443,7 +411,7 @@ int root_inode_get(superblock *s, inode *root, direntry **file_list){
 
     number_of_files = 0;
     
-    fseek(f, s->index_inodes, 0);
+    fseek(f, s->index_inode * BLOCK_SIZE, 0);
     fread(root, sizeof(inode), 1, f);
 
     number_of_files = root->file_size / sizeof(direntry);
@@ -463,11 +431,11 @@ int root_inode_get(superblock *s, inode *root, direntry **file_list){
 
 
 int inode_fetch(superblock *s, inode *l, int inode_number) {
-    fseek(f, s->index_inodes + (sizeof(inode) * inode_number), 0);
+    fseek(f, (s->index_inode * BLOCK_SIZE) + (sizeof(inode) * inode_number), 0);
     fread(l, sizeof(inode), 1, f);
 
     if(l->inode_number != inode_number){
-        printf("???\n");
+        printf("error obtaining correct inode.\n");
         exit(0);
     }
 
@@ -478,7 +446,106 @@ int inode_fetch(superblock *s, inode *l, int inode_number) {
 
 
 
+int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *dst_items, inode *l, direntry **file_list){
 
+    int i;
+
+    inode root_inode;
+    direntry *dir;
+
+    inode current_inode;
+    inode parent_inode;
+
+    int src_index;
+    int dst_index;
+
+
+    int current_inode_number_of_files;
+
+    current_inode_number_of_files = 0;
+    src_index = 0;
+    dst_index = 0;
+    
+
+
+    current_inode_number_of_files = root_inode_get(s, &root_inode, &dir);
+
+    current_inode = root_inode;
+    parent_inode = root_inode;
+
+
+    dst[dst_index] = malloc(sizeof(char) * 2);
+    strcpy(dst[dst_index++], "/");
+    src_index++;
+
+    while(src_index < src_items) {
+
+        for(i=0;i<current_inode_number_of_files;i++){
+            if(strcmp(src[src_index], dir[i].name) == 0){
+                break;
+            }
+        }
+
+        if(i == current_inode_number_of_files) {
+            printf("%s is not a directory\n", src[src_index]);
+            goto exit;
+        }
+
+        parent_inode = current_inode;
+
+        inode_fetch(s, &current_inode, dir[i].inode_number);
+
+        if(current_inode.type != directory) {
+            printf("%s is not a directory\n", src[src_index]);
+            goto exit;
+        }
+
+        if(strcmp(".", src[src_index]) == 0 ) {
+                src_index++;
+                continue;
+            }
+
+        if(strcmp("..", src[src_index]) == 0 ) {
+            current_inode = parent_inode;
+            free(dst[dst_index]);
+            src_index++;
+            dst_index--;
+            continue;
+        }
+
+        dst[dst_index] = malloc(strlen(src[src_index]) +1);
+        strcpy(dst[dst_index], src[src_index]);
+
+        current_inode_number_of_files = current_inode.file_size / sizeof(direntry);
+
+        fseek(f, current_inode.data_index * BLOCK_SIZE, 0);
+        fread(dir, sizeof(direntry), current_inode_number_of_files, f);
+
+        src_index++;
+        dst_index++;
+    }
+
+    *dst_items = dst_index;
+
+    l->data_index = current_inode.data_index;
+    l->file_size = current_inode.file_size;
+    l->inode_number = current_inode.inode_number;
+    l->type = current_inode.type;
+    l->used = current_inode.used;
+
+
+    if((*file_list) == 0)
+        (*file_list) = malloc(sizeof(direntry) * MAX_FILE_AMOUNT);
+
+    (*file_list) = dir;
+
+
+
+    exit:
+
+
+    return current_inode_number_of_files;
+}
 
 
 

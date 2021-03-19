@@ -23,11 +23,10 @@ command_only list_file_command_only[] = {
     {"help", help},
     {"quit", quit_file_system},
     {"print_superblock", superblock_print},
-    {"print_open_files", open_files_print_all}
 };
 
 file_request list_file_command_name[] = {
-    {"open", file_open},
+    {"create", file_create},
     {"close", NULL},
     {"cat", cat},
     {"mkdir", mkdir},
