@@ -295,8 +295,12 @@ int cd(char **path_split, int items_split){
         current_inode_file_number = root_inode_get(&s, &current_inode, &dir);
     }
 
-    if( (strcmp(".", path_split[items_split -1]) == 0 || strcmp("..", path_split[items_split -1]) == 0) && items_returned_split == -1) {
+    if((strcmp(".", path_split[items_split -1]) == 0 || strcmp("..", path_split[items_split -1]) == 0) && items_returned_split == -1) {
         strcpy(path, "/");
+        goto exit;
+    }
+
+    if(items_returned_split == -404){
         goto exit;
     }
 
@@ -311,6 +315,13 @@ int cd(char **path_split, int items_split){
             printf("%s is not a directory\n", path_split[items_split -1]);
             goto exit;
         }
+        inode_fetch(&s, &current_inode, dir[i].inode_number);
+
+        if(current_inode.type != directory) {
+            printf("%s is not a directory\n", path_split[items_split -1]);
+            goto exit;
+        }
+
         strcpy(temp + temp_index, path_split[items_split -1]);
         temp_index += strlen(path_split[items_split -1]);
         temp[temp_index++] = '/';

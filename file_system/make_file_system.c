@@ -485,6 +485,9 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
     strcpy(dst[dst_index++], "/");
     src_index++;
 
+   
+
+
     while(src_index < src_items) {
 
         for(i=0;i<current_inode_number_of_files;i++){
@@ -497,19 +500,10 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
             for(index=1;index<dst_index;index++){
                 printf("/%s", dst[index]);
             }
-            printf("%s is not a directory\n", src[src_index]);
-            goto exit;
-        }
+            printf("/%s is not a directory: 1\n", src[src_index]);
 
-        parent_inode = current_inode;
 
-        inode_fetch(s, &current_inode, dir[i].inode_number);
-
-        if(current_inode.type != directory) {
-            for(index=1;index<dst_index;index++){
-                printf("/%s", dst[index]);
-            }
-            printf("%s is not a directory\n", src[src_index]);
+            *dst_items = -404;
             goto exit;
         }
 
@@ -520,11 +514,32 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
 
         if(strcmp("..", src[src_index]) == 0 ) {
             current_inode = parent_inode;
+            current_inode_number_of_files = current_inode.file_size / sizeof(direntry);
+
+            fseek(f, current_inode.data_index * BLOCK_SIZE, 0);
+            fread(dir, sizeof(direntry), current_inode_number_of_files, f);
+            
+
             free(dst[dst_index]);
             src_index++;
             dst_index--;
             continue;
         }
+
+        parent_inode = current_inode;
+
+        inode_fetch(s, &current_inode, dir[i].inode_number);
+
+        if(current_inode.type != directory) {
+            for(index=1;index<dst_index;index++){
+                printf("/%s", dst[index]);
+            }
+            printf("/%s is not a directory: 2\n", src[src_index]);
+            *dst_items = -404;
+            goto exit;
+        }
+
+        
 
         dst[dst_index] = malloc(strlen(src[src_index]) +1);
         strcpy(dst[dst_index], src[src_index]);
@@ -536,6 +551,8 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
 
         src_index++;
         dst_index++;
+
+       
     }
 
     *dst_items = dst_index;
@@ -567,7 +584,7 @@ int path_convert_to_full_path(sequence *user_path, char **path_split) {
 
     char temp[512];
     int items_split;
-    int i;
+    
 
     items_split = 0;
 
