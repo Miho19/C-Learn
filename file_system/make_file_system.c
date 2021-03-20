@@ -338,10 +338,11 @@ int inode_file_data_commit(superblock *s, inode *l) {
 
     char temp[512];
 
-    block_of_bits = 0;
+    
 
     for(i=0;i<(int)(BLOCK_SIZE/sizeof(unsigned char));i++) {
-        fseek(f, (s->index_bitmap * BLOCK_SIZE) + (sizeof(unsigned char) * i),0);
+        block_of_bits = 0;
+        fseek(f, (s->index_bitmap * BLOCK_SIZE) + i,0);
         fread(&block_of_bits, sizeof(unsigned char),1, f);
 
         for(block = 0;block < (int)(sizeof(unsigned char) * BITS_IN_A_BYTE);block++) {
@@ -359,10 +360,11 @@ int inode_file_data_commit(superblock *s, inode *l) {
     }
 
     memset(temp, 0, sizeof(temp));
-    
-    block = block + (i * sizeof(unsigned char));
 
     block_of_bits |= 1 << block;
+
+    block = block + (i * BITS_IN_A_BYTE);
+
 
     fseek(f, (s->index_bitmap * BLOCK_SIZE) + i,0 );
     fwrite(&block_of_bits, sizeof(unsigned char), 1, f);
@@ -438,10 +440,18 @@ int root_inode_get(superblock *s, inode *root, direntry **file_list){
     int number_of_files;
     number_of_files = 0;
 
+
+    memset(root, 0, sizeof(*root));
+
+
     fseek(f, (s->index_inode * BLOCK_SIZE), 0);
     fread(root, sizeof(inode), 1, f);
 
+   
+
     number_of_files = root->file_size / sizeof(direntry);
+
+ 
 
     
 
@@ -517,13 +527,10 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
     dst_index++;
 
 
-    
-   
-
-
     while(src_index < src_items) {
 
         for(i=0;i<current_inode_number_of_files;i++){
+            
             if(strcmp(src[src_index], dir[i].name) == 0){
                 break;
             }

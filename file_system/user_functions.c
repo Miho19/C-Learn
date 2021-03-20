@@ -18,7 +18,7 @@ extern int inode_create_text_file(superblock *s, inode *parent, int parent_num_f
 int ls() {
 
     superblock *s;
-    inode root_ionde;
+    inode root_inode;
     direntry *dir;
 
     
@@ -41,12 +41,15 @@ int ls() {
     dir = 0;
     s = 0;
 
+
+
     s = malloc(sizeof(*s));
     memset(s, 0, sizeof(*s));
-    
+    memset(&root_inode, 0, sizeof(root_inode));
+
 
     superblock_get(s);
-    current_inode_number_of_files = root_inode_get(s, &root_ionde, &dir);
+    current_inode_number_of_files = root_inode_get(s, &root_inode, &dir);
 
     if(strcmp(path, "/") == 0) {
         print_list_inodes(dir + 2, current_inode_number_of_files - 2);
@@ -60,7 +63,7 @@ int ls() {
     /** ignore root / */
     path_split_index = 1;
 
-    current_inode = root_ionde;
+    current_inode = root_inode;
 
     while(path_split_index < items_split) {
         
@@ -243,14 +246,18 @@ int cat(char **path_split, int items_split) {
     superblock_get(s);
 
     if(items_split > 2) {
+
         current_inode_file_number = path_get_inode(s, path_split, items_split - 1, path_returned_split,&items_returned_split, &current_inode);
         if(current_inode_file_number == -404)
             goto exit;
         current_inode_file_number = current_inode.file_size / sizeof(direntry);
         
+        
         dir = malloc(sizeof(direntry) * MAX_FILE_AMOUNT);
         fseek(f, current_inode.data_index * BLOCK_SIZE, 0);
         fread(dir, sizeof(direntry), current_inode_file_number, f);
+
+        
 
     } else {
         current_inode_file_number = root_inode_get(s, &current_inode, &dir);
@@ -307,10 +314,114 @@ int cat(char **path_split, int items_split) {
 
 /** data request */
 
-int file_write(sequence *file_name, sequence *file_data, int mode){
-  
-    printf("%s %s %d", file_name->string, file_data->string, mode);
-    return 0;
+int file_write(char **path_split, int items_split, sequence *file_data, int mode){
+    
+    int i;
+
+    superblock s;
+    inode current_inode;
+    int current_inode_number_files;
+    direntry *dir;
+
+    char *path_returned_split[MAX_FILE_AMOUNT];
+    int items_returned_split;
+
+    int result;
+
+    char temp[BLOCK_SIZE];
+    int temp_index;
+
+    dir = 0;
+    items_returned_split = 0;
+    current_inode_number_files = 0;
+    memset(&current_inode, 0, sizeof(current_inode));
+    memset(&s, 0, sizeof(s));
+    result = 0;
+
+    superblock_get(&s);
+
+    for(i=0;i<MAX_FILE_AMOUNT;i++)
+        path_returned_split[i] = 0;
+
+    if(items_split - 1 > 1) {
+        result = path_get_inode(&s, path_split, items_split - 1, path_returned_split, &items_returned_split, &current_inode);
+        if(result == -404)
+            goto exit;
+        current_inode_number_files = current_inode.file_size / sizeof(direntry);
+        dir = malloc(sizeof(direntry) * current_inode_number_files);
+        fseek(f, current_inode.data_index * BLOCK_SIZE, 0);
+        fread(dir, sizeof(direntry), current_inode_number_files, f);
+    } else {
+        current_inode_number_files = root_inode_get(&s, &current_inode, &dir);
+    }
+
+    if(strcmp(path_split[items_split - 1], ".") == 0 || strcmp(path_split[items_split - 1], "..") == 0)
+        goto exit;
+
+    for(i=0;i<current_inode_number_files;i++){
+        if(strcmp(path_split[items_split - 1], dir[i].name) == 0)
+            break;
+    }
+
+    if(i == current_inode_number_files){
+        for(i=1;i<items_split;i++)
+            printf("/%s", path_split[i]);
+        printf("%s is not a text file: 1\n", path_split[items_split - 1]);
+        result = -1;
+        goto exit;
+    }
+
+    inode_fetch(&s, &current_inode, dir[i].inode_number);
+
+    if(current_inode.type != text_file){
+        for(i=1;i<items_split;i++)
+            printf("/%s", path_split[i]);
+        printf("%s is not a text file: 2\n", path_split[items_split - 1]);
+        result = -1;
+        goto exit;
+    }
+
+    memset(temp, 0, sizeof(temp));
+
+    if(mode == FILE_OVERWRITE){
+        strcpy(temp, file_data->string);
+        temp[file_data->length] = '\0';
+        fseek(f, (current_inode.data_index * BLOCK_SIZE), 0);
+        result = fwrite(temp, sizeof(char), BLOCK_SIZE, f);
+        current_inode.file_size = file_data->length;
+        inode_update(&current_inode);
+        goto exit;
+    }
+
+    if((current_inode.file_size + file_data->length) > BLOCK_SIZE) {
+        file_data->length = (BLOCK_SIZE - file_data->length);
+    }
+
+    fseek(f, current_inode.data_index * BLOCK_SIZE, 0);
+
+    fread(temp, sizeof(char), current_inode.file_size, f);
+
+    for(i=0, temp_index = current_inode.data_index;temp_index<BLOCK_SIZE && i < file_data->length;i++, temp_index++){
+        temp[temp_index] = file_data->string[i]; 
+    }
+
+    temp[temp_index] = '\0';
+    fseek(f, current_inode.data_index * BLOCK_SIZE, 0);
+    result = fwrite(temp, sizeof(char), BLOCK_SIZE, f);
+
+    inode_update(&current_inode);
+        
+
+    exit:
+    if(dir)
+        free(dir);
+    for(i=0;i<MAX_FILE_AMOUNT;i++){
+        if(path_returned_split[i])
+            free(path_returned_split[i]);
+    }
+
+
+    return result;
 }
 
 

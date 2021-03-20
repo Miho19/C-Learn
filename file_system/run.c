@@ -68,7 +68,7 @@ int execute(){
     }
 
     if(rq->type == DATA_REQUEST) {
-        list_file_command_name_data[rq->command_index].data_function(rq->file_name, rq->file_data, FILE_OVERWRITE);
+        list_file_command_name_data[rq->command_index].data_function(path_split, items_split, rq->file_data, FILE_OVERWRITE);
         goto exit;
     }
 

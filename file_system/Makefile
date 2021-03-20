@@ -18,4 +18,4 @@ usf: $(OBJ)
 .PHONY: clean
 
 clean:
-	rm -rf *o usf
+	rm -rf *o usf valgrind-out.txt

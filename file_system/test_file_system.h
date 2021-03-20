@@ -91,7 +91,7 @@ typedef struct file_request {
 
 typedef struct data_request {
     char *command_name;
-    int (*data_function)(sequence *file_name, sequence *file_data, int mode);
+    int (*data_function)(char **path_split, int items_split, sequence *file_data, int mode);
 } data_request;
 
 typedef enum {
@@ -142,7 +142,7 @@ int cd(char **path_split, int items_split);
 
 
 /** data request */
-int file_write(sequence *file_name, sequence *file_data, int mode);
+int file_write(char **path_split, int items_split, sequence *file_data, int mode);
 
 
 
