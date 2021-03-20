@@ -50,8 +50,6 @@ int execute(){
     if(rq->command_index == -1)
         goto exit;
 
-
-    
     
     if(rq->type == COMMAND_ONLY) {
         list_file_command_only[rq->command_index].command_function();
@@ -100,6 +98,8 @@ int run(){
 
 
     destroy();
+
+   
 
     return 1;
 }
@@ -279,7 +279,8 @@ int input() {
 }
 
 int display(){
-    printf("%s:", path);
+    if(!quit)
+        printf("%s:", path);
 
     if(rq->status){
         rq->status = 0;

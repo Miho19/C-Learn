@@ -28,6 +28,8 @@ void init(int size){
     superblock s;
     
     BUFFER_SIZE = size;
+
+    f = NULL;
     
     f = fopen("output.txt", "r+b");
 
@@ -163,16 +165,23 @@ void file_system_make(void) {
 }
 
 void superblock_get(superblock *s) {
+    memset(s, 0, sizeof(*s));
     fseek(f, 0, 0);
     fread(s, sizeof(superblock),1, f);
 }
 
 
 int inode_update(inode *i) {
-    superblock s;
-    superblock_get(&s);
+    superblock *s;
+    s = 0;
+    s = malloc(sizeof(*s));
+    memset(s, 0, sizeof(*s));
+    superblock_get(s);
 
-    fseek(f, (s.index_inode * BLOCK_SIZE) + (i->inode_number * sizeof(inode) ), 0);
+    fseek(f, (s->index_inode * BLOCK_SIZE) + (i->inode_number * sizeof(inode) ), 0);
+
+    free(s);
+
     return fwrite(i, sizeof(inode), 1, f);
 }
 
@@ -187,11 +196,14 @@ int inode_create(superblock *s, inode *l) {
     int result;
     int i;
 
+    list = 0;
+    result = 0;
+    i = 0;
+
 
     list = malloc(sizeof(*list) * s->MAX_INODE_NUMBER);
     
-
-    result = 0;
+    
     fseek(f, (s->index_inode * BLOCK_SIZE), 0);
 
     result = fread(list, sizeof(inode), s->MAX_INODE_NUMBER, f);                   /** Get entire list of inodes */
@@ -271,12 +283,17 @@ int inode_create_dir(superblock *s, inode *parent, int parent_num_files, const c
 
 int inode_create_text_file(superblock *s, inode *parent, int parent_num_files, const char *name){
     direntry temp_dir;
-    inode new_inode;
+    inode *new_inode;
 
-    inode_create(s, &new_inode);
-    inode_file_data_commit(s, &new_inode);
+    new_inode = 0;
+    new_inode = malloc(sizeof(*new_inode));
+    memset(new_inode, 0, sizeof(*new_inode));
+    memset(&temp_dir, 0, sizeof(temp_dir));
 
-    temp_dir.inode_number = new_inode.inode_number;
+    inode_create(s, new_inode);
+    inode_file_data_commit(s, new_inode);
+
+    temp_dir.inode_number = new_inode->inode_number;
     strcpy(temp_dir.name, name);
 
     fseek(f, (parent->data_index * BLOCK_SIZE) + (sizeof(direntry) * parent_num_files), 0);
@@ -284,6 +301,9 @@ int inode_create_text_file(superblock *s, inode *parent, int parent_num_files, c
 
     parent->file_size += sizeof(temp_dir);
     inode_update(parent);
+
+    free(new_inode);
+
 
     return 0;
 
