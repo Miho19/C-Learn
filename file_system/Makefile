@@ -1,11 +1,21 @@
-
 CC = gcc
-CFLAGS = -Wall -W -ansi -pedantic -g -o
+CFLAGS = -Wall -W -ansi -pedantic -g -I.
+DEPS = test_file_system.h file_system_error.h
 
-SRC = main.c run.c make_file_system.c user_functions.c 
+OBJ = main.o run.o make_file_system.o user_functions.o
 
-main: $(SRC%.c=%.o)
-	@echo "attempting to build"
-	$(CC) $(CFLAGS) $@ $(SRC)
-	
-	./$@
+
+%.o: %.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS) 
+
+usf: $(OBJ)
+	$(CC) -o  $@ $^ $(CFLAGS)
+	./usf   
+
+
+
+
+.PHONY: clean
+
+clean:
+	rm -rf *o usf

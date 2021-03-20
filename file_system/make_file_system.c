@@ -19,7 +19,7 @@ int superblock_update(superblock *s);
  * first inode and entry is . directory
 */
 
-int BUFFER_SIZE = 4096;
+int BUFFER_SIZE = 0;
 
 int fd_counter = 0;
 
@@ -68,6 +68,10 @@ void destroy(void) {
         free(rq->file_data->string);
     if(rq->file_name)
         free(rq->file_name->string);
+
+    free(rq->file_command);
+    free(rq->file_data);
+    free(rq->file_name);
     free(rq);
 
     fclose(f);
@@ -410,11 +414,8 @@ int print_list_inodes(direntry *dir, int length){
 int root_inode_get(superblock *s, inode *root, direntry **file_list){
     
     int number_of_files;
-
     number_of_files = 0;
 
-    
-    
     fseek(f, (s->index_inode * BLOCK_SIZE), 0);
     fread(root, sizeof(inode), 1, f);
 
@@ -424,12 +425,11 @@ int root_inode_get(superblock *s, inode *root, direntry **file_list){
 
     fseek(f, root->data_index * BLOCK_SIZE, 0);
 
+    *file_list = 0;
 
+    *file_list = malloc(sizeof(*(*file_list)) * MAX_FILE_AMOUNT);
 
-    (*file_list) = malloc(sizeof(direntry) * MAX_FILE_AMOUNT);
-    memset((*file_list), 0, MAX_FILE_AMOUNT * sizeof(direntry));
-
-    fread((*file_list), sizeof(direntry), number_of_files, f);
+    fread(*file_list, sizeof(direntry), number_of_files, f);
 
     return number_of_files;
 
@@ -452,10 +452,12 @@ int inode_fetch(superblock *s, inode *l, int inode_number) {
 
 
 
-int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *dst_items, inode *l, direntry **file_list){
+int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *dst_items, inode *l){
 
     int i;
     int index;
+
+    int result;
 
     inode root_inode;
     direntry *dir;
@@ -465,13 +467,19 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
 
     int src_index;
     int dst_index;
+    
 
 
     int current_inode_number_of_files;
-
+    result = 0;
     current_inode_number_of_files = 0;
     src_index = 0;
+    *dst_items = 0;
     dst_index = 0;
+    
+    
+    for(i=0;i<MAX_FILE_AMOUNT;i++)
+        dst[i] = 0;
     
 
 
@@ -482,9 +490,12 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
 
 
     dst[dst_index] = malloc(sizeof(char) * 2);
-    strcpy(dst[dst_index++], "/");
+    strcpy(dst[dst_index], "/");
     src_index++;
+    dst_index++;
 
+
+    
    
 
 
@@ -502,8 +513,7 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
             }
             printf("/%s is not a directory: 1\n", src[src_index]);
 
-
-            *dst_items = -404;
+            result = -404;
             goto exit;
         }
 
@@ -518,8 +528,6 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
 
             fseek(f, current_inode.data_index * BLOCK_SIZE, 0);
             fread(dir, sizeof(direntry), current_inode_number_of_files, f);
-            
-
             free(dst[dst_index]);
             src_index++;
             dst_index--;
@@ -535,7 +543,7 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
                 printf("/%s", dst[index]);
             }
             printf("/%s is not a directory: 2\n", src[src_index]);
-            *dst_items = -404;
+            result = -404;
             goto exit;
         }
 
@@ -555,7 +563,6 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
        
     }
 
-    *dst_items = dst_index;
 
     l->data_index = current_inode.data_index;
     l->file_size = current_inode.file_size;
@@ -564,14 +571,14 @@ int path_get_inode(superblock *s, char **src, int src_items, char **dst, int *ds
     l->used = current_inode.used;
 
 
-    if((*file_list) == 0)
-        (*file_list) = malloc(sizeof(direntry) * MAX_FILE_AMOUNT);
-
-    (*file_list) = dir;
-
-
-
     exit:
+
+    free(dir);
+
+    if(result != 0)
+        current_inode_number_of_files = result;
+    
+    *dst_items = dst_index;
 
 
     return current_inode_number_of_files;

@@ -8,7 +8,7 @@ extern int split_path(char **dest, const char *source, int length);
 extern int root_inode_get(superblock *s, inode *root, direntry **file_list);
 extern int inode_fetch(superblock *s, inode *l, int inode_number);
 extern int print_list_inodes(direntry *dir, int length);
-extern int path_get_inode(superblock *s, char **path_split, int items_split, char **path_returned, int *path_number_items, inode *l, direntry **file_list);
+extern int path_get_inode(superblock *s, char **path_split, int items_split, char **path_returned, int *path_number_items, inode *l);
 extern int mem_inode_list_get_free_index(int inode_number);
 extern int inode_create_text_file(superblock *s, inode *parent, int parent_num_files, const char *name);
 
@@ -142,12 +142,20 @@ int file_create(char **path_split, int items_split){
     current_inode_number_of_files = root_inode_get(&s, &current_inode, &dir);
 
     if( (items_split - 1) > 1 ) {
-        current_inode_number_of_files = path_get_inode(&s, path_split, items_split - 1, path_returned_split, &items_returned_split, &current_inode, &dir);
+        current_inode_number_of_files = path_get_inode(&s, path_split, items_split - 1, path_returned_split, &items_returned_split, &current_inode);
+        if(current_inode_number_of_files == -404)
+            goto exit;
+        fseek(f, current_inode.data_index, 0);
+        fread(dir, sizeof(direntry), current_inode_number_of_files, f);
+
     }
 
     if(strcmp(path_split[items_split - 1], ".") == 0 || strcmp(path_split[items_split - 1], "..") == 0) {
        goto exit;
     }
+
+    
+        
 
     for(i=0;i<current_inode_number_of_files;i++){
         if(strcmp(dir[i].name, path_split[items_split - 1]) == 0)
@@ -199,7 +207,12 @@ int cat(char **path_split, int items_split) {
     
 
     if(items_split > 2) {
-        current_inode_file_number = path_get_inode(&s, path_split, items_split - 1, path_returned_split,&items_returned_split, &current_inode, &dir);
+        current_inode_file_number = path_get_inode(&s, path_split, items_split - 1, path_returned_split,&items_returned_split, &current_inode);
+        if(current_inode_file_number == -404)
+            goto exit;
+        fseek(f, current_inode.data_index, 0);
+        fread(dir, sizeof(direntry), current_inode_file_number, f);
+
     } else {
         current_inode_file_number = root_inode_get(&s, &current_inode, &dir);
     }
@@ -207,6 +220,9 @@ int cat(char **path_split, int items_split) {
     if(strcmp(path_split[items_split - 1], ".") == 0 || strcmp(path_split[items_split - 1], "..") == 0) {
        goto exit;
     }
+
+    if(current_inode_file_number == -404)
+        goto exit;
 
 
     for(i=0;i<current_inode_file_number;i++){
@@ -240,7 +256,7 @@ int cat(char **path_split, int items_split) {
     printf("\n");
 
     exit:
-
+    
 
     for(i=0;i<items_returned_split;i++)
         free(path_returned_split[i]);
@@ -283,14 +299,35 @@ int cd(char **path_split, int items_split){
     items_returned_split = -1;
     item_length = 0;
     temp_index = 0;
+    dir = 0;
+
+
+    
+    
 
     memset(temp, 0, sizeof(temp));
+
+    for(i=0;i<MAX_FILE_AMOUNT;i++)
+        path_returned_split[i] = 0;
 
     superblock_get(&s);
 
 
     if(items_split > 2) {
-        current_inode_file_number = path_get_inode(&s, path_split, items_split, path_returned_split,&items_returned_split, &current_inode, &dir);
+        current_inode_file_number = path_get_inode(&s, path_split, items_split, path_returned_split,&items_returned_split, &current_inode);
+        
+        if(current_inode_file_number == -404)
+            goto exit;
+
+        dir = malloc(sizeof(direntry) * MAX_FILE_AMOUNT);
+        current_inode_file_number = current_inode.file_size / sizeof(direntry);
+        
+
+        fseek(f, (current_inode.data_index * BLOCK_SIZE) , 0);
+        fread(dir, sizeof(direntry), current_inode_file_number, f);
+
+        
+
     } else {
         current_inode_file_number = root_inode_get(&s, &current_inode, &dir);
     }
@@ -300,9 +337,8 @@ int cd(char **path_split, int items_split){
         goto exit;
     }
 
-    if(items_returned_split == -404){
-        goto exit;
-    }
+    
+
 
     temp[temp_index++] = '/';
 
@@ -330,6 +366,8 @@ int cd(char **path_split, int items_split){
         goto exit;
     }
 
+   
+
     for(i=1;i<items_returned_split;i++) {
         item_length = strlen(path_returned_split[i]);
         for(j=0;j<item_length;j++, temp_index++){
@@ -338,6 +376,8 @@ int cd(char **path_split, int items_split){
         temp[temp_index++] = '/';
     }
 
+   
+
     temp[temp_index] = '\0';
 
     strcpy(path, temp);
@@ -345,10 +385,12 @@ int cd(char **path_split, int items_split){
 
     exit:
 
-    free(dir);
+    if(dir)
+        free(dir);
 
-    for(i=0;i<items_returned_split;i++){
-        free(path_returned_split[i]);
+    for(i=0;i<MAX_FILE_AMOUNT;i++){
+        if(path_returned_split[i])
+            free(path_returned_split[i]);
     }
 
     return 0;

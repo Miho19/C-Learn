@@ -9,9 +9,8 @@
 
 
 int main(void){
-
+    printf("hell0 world\n");
     run();
-
     return 0;
 }
 

@@ -21,6 +21,7 @@ int help(void);
 command_only list_file_command_only[] = {
     {"ls", ls},
     {"help", help},
+    {"exit", quit_file_system},
     {"quit", quit_file_system},
     {"print_superblock", superblock_print},
 };
@@ -44,34 +45,35 @@ int execute(){
    
 
     if(rq->type == PENDING)
-        return -1;
+        goto exit;
 
     if(rq->command_index == -1)
-        return -1;
+        goto exit;
 
 
     
     
     if(rq->type == COMMAND_ONLY) {
         list_file_command_only[rq->command_index].command_function();
-        return 0;
+        goto exit;
     }
 
     items_split = path_convert_to_full_path(rq->file_name, path_split);
 
    if(items_split < 2)
-        return -1;
+        goto exit;
 
     if(rq->type == FILE_REQUEST) {
         list_file_command_name[rq->command_index].file_function(path_split, items_split);
-        
-        return 0;
+        goto exit;
     }
 
     if(rq->type == DATA_REQUEST) {
         list_file_command_name_data[rq->command_index].data_function(rq->file_name, rq->file_data, FILE_OVERWRITE);
-        return 0;
+        goto exit;
     }
+
+    exit:
 
     for(i=0;i<items_split;i++){
         if(path_split[i])
@@ -92,7 +94,6 @@ int run(){
 
     while(!quit){
         input();
-        
         execute();
         display();
     }
