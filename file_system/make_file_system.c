@@ -30,6 +30,7 @@ void init(int size){
     BUFFER_SIZE = size;
 
     f = NULL;
+    memset(&s, 0, sizeof(superblock));
     
     f = fopen("output.txt", "r+b");
 
@@ -53,11 +54,7 @@ void init(int size){
 
 
    rq = malloc(sizeof(request));
-   rq->file_command = 0;
-   rq->file_data = 0;
-   rq->file_name = 0;
-   rq->status = 0;
-
+   memset(rq, 0, sizeof(*rq));
 
 }
 
@@ -106,6 +103,9 @@ void file_system_make(void) {
     int i;
     bitblock = 0;
     memset(temp, 0, sizeof(temp));
+    memset(&s, 0, sizeof(s));
+    memset(&root_inode, 0, sizeof(root_inode));
+    memset(&dir, 0, sizeof(dir));
 
     s.type = VERSION;
     s.size = BUFFER_SIZE;
@@ -248,6 +248,9 @@ int inode_create_dir(superblock *s, inode *parent, int parent_num_files, const c
     direntry temp_dir;
     inode new_inode;
     
+
+    memset(&new_inode, 0, sizeof(new_inode));
+    memset(&temp_dir, 0, sizeof(temp_dir));
 
     inode_create(s, &new_inode);
 
@@ -420,7 +423,6 @@ int split_path(char **dest, const char *source, int length){
 
 int print_list_inodes(direntry *dir, int length){
     int i;
-    printf("inode | name\n");
 
     for(i=0;i<length;i++){
         printf("%d | %s\n", dir[i].inode_number, dir[i].name);

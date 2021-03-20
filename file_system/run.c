@@ -29,7 +29,8 @@ command_only list_file_command_only[] = {
 file_request list_file_command_name[] = {
     {"create", file_create},
     {"cat", cat},
-    {"cd", cd}
+    {"cd", cd},
+    {"mkdir", mkdir}
 };
 
 data_request list_file_command_name_data[] =  {

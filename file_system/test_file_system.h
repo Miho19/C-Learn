@@ -137,7 +137,7 @@ int cat(char **path_split, int items_split);
 
 
 /** Dir request */
-int mkdir(sequence *dir_name);
+int mkdir(char **path_split, int items_split);
 int cd(char **path_split, int items_split);
 
 
