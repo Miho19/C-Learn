@@ -10,6 +10,10 @@ valgrind --leak-check=full \
          --log-file=valgrind-out.txt \
          ./executable exampleParam1
 
+# https://stackoverflow.com/questions/5134891/how-do-i-use-valgrind-to-find-memory-leaks
+
+
+
 MakeFile example:
 CC = gcc
 CFLAGS = -Wall -W -ansi -pedantic -g
@@ -48,3 +52,4 @@ clean:
 
 -include $(OBJ:.o=.d)
 
+# https://stackoverflow.com/questions/30573481/how-to-write-a-makefile-with-separate-source-and-header-directories
