@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
 
     
 
-    
+    printResult(0, argc - 3, result);
     freeHex(0, argc - 3, result);
 
 
@@ -62,7 +62,7 @@ void freeHex(int i, int size, char** hex) {
 void printResult(int i, int size, char** hex) {
     if(i == size)
         return;
-    printf("0x%s\n", hex[i]);
+    printf("%s\n", hex[i]);
     printResult(i + 1, size, hex);
 }
 
@@ -84,39 +84,45 @@ char** performConversion(int size, char** argv) {
     return 0;
 }
 
-char* strrev(char * str) {
-    int j;
-    int i;
+char* strrev(char *str, int i, int j) {
     char c;
     c = 0;
-    i = 0;
-    j = 0;
-
-    
 
     if(!str || !*str)
         return str;
 
-    i = strlen(str) -1;
-    
-    while(i > j) {
-        c = str[i];
-        str[i] = str[j];
-        str[j] = c;
-        i--;
-        j++;
+    if(i < j)
+        return str;
+
+    c = str[i];
+    str[i] = str[j];
+    str[j] = c;
+    i--;
+    j++;
+
+    return strrev(str, i , j );
+}
+
+
+
+
+char* convertToBinary(int i, int num, char *result){
+    if(!num) {
+        result[i] = '\0';
+        return result;
     }
 
-    return str;
+    result[i] = (num % 2) + '0';
 
+    return convertToBinary(i + 1, num / 2, result);
 }
 
 char** decimalToBinaryHelper(int i, int size, char **input, char **result) {
     int num;
-    int j;
+    
     char binary[64 + 1];
     num = 0;
-    j = 0;
+   
 
     if(i == size)
         return result;
@@ -125,15 +131,9 @@ char** decimalToBinaryHelper(int i, int size, char **input, char **result) {
 
     result[i] = malloc( 64 + 1);
 
-    while(num) {
-        binary[j] = (num % 2) + '0';
-        num /= 2;
-        j++;
-    }
+    convertToBinary(0, num, binary);
 
-    binary[j] = '\0';
-
-    strcpy(result[i], strrev(binary)); 
+    strcpy(result[i], strrev(binary, strlen(binary) - 1, 0)); 
     return decimalToBinaryHelper(i + 1,size, input, result);
 }
 
