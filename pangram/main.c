@@ -27,9 +27,6 @@ int main(void) {
     char temp;
     int pan = 0;
 
-    
-   
-
    for(i = 0;i<ARR;i++) {
        for(j=0;j<STR;j++) {
             words[i][j] = 0;

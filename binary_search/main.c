@@ -43,7 +43,7 @@ int main(void) {
 
     count = 0;
 
-    while(count < ARRAY_SIZE && 1 == scanf("%d", &my_array[count]))
+    while(count < ARRAY_SIZE && 1 == scanf(" %d", &my_array[count]))
         count++;
 
     insertion_sort(my_array, count);
