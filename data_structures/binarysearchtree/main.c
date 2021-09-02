@@ -25,11 +25,26 @@ int main(void){
     struct bst *b = bst_new(print_func, compare_func, sizeof(int));
     i = 10;
     bst_add(b, &i);
-    i = 13123;
-    bst_add(b, &i);
+
     i = 1000;
     bst_add(b, &i);
 
+    i = 9;
+    bst_add(b, &i);
+
+    i = 1002;
+    bst_add(b, &i);
+
+    i = 99;
+    bst_add(b, &i);
+
+    i = 1000;
+    
+    bst_delete(b, &i);
+    
+    bst_print(b);
+
     bst_destroy(b);
+    
     return 0;
 }

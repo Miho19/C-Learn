@@ -25,6 +25,9 @@ struct bst* bst_new(void (*print_func)(void *), int (*compare_func)(void *, void
 struct bst* bst_destroy(struct bst* b);
 
 int bst_add(struct bst *b, void *data);
+int bst_delete(struct bst *b, void *data);
+int bst_find(struct bst *b, void *data);
 int bst_print(struct bst *b);
+
 
 #endif

@@ -131,3 +131,137 @@ int bst_print(struct bst *b){
 }
 
 
+static struct node* node_find(struct node *curr, void *data, int (*compare_function)(void *, void *)){
+    
+    int compare = 0;
+
+    if(curr == 0){
+        return 0;
+    }
+
+    compare = compare_function(data, curr->data);
+    
+    if(compare == 0){
+        return curr;
+    }
+        
+    if(compare > 0 && curr->right){
+        return node_find(curr->right, data, compare_function);
+    }
+
+    if(compare < 0 && curr->left){
+        return node_find(curr->left, data, compare_function);
+    }
+
+
+    return 0;
+}
+
+int bst_find(struct bst *b, void *data){
+    
+    if(!data)
+        return 0;
+    
+    return node_find(b->root, data, b->compare_function) ? 1 : 0;
+}
+
+
+static struct node* node_parent(struct node *child, struct node *parent, int (*compare_function)(void *, void*)){
+
+    int compare = 0;
+    
+    
+
+    if(parent->left == child || parent->right == child){    
+        return parent;   
+    }
+
+    compare = compare_function(child->data, parent->data);
+
+    if(compare == 0)
+        return 0;
+    
+    if(compare > 0){
+        return node_parent(child, parent->right, compare_function);
+    }
+
+    if(compare < 0){
+        return node_parent(child, parent->left, compare_function);
+    }
+
+    return 0;
+
+}
+
+static void* node_insuccesor_data(struct node *curr){
+    
+    while(curr->left != 0){
+        curr = curr->left;
+    }
+
+    return curr->data;
+}
+
+static int node_delete(struct node *curr, struct node *parent, int (*compare_function)(void *, void *), size_t element_size){
+
+    void *data = 0;
+    struct node *successor = 0;
+
+    
+    
+    if(!curr->left && !curr->right){
+        
+        if(parent) {
+            
+            if(parent->left == curr){
+                
+                parent->left = 0;
+            } else {
+                
+                parent->right = 0;
+            }
+        }
+
+        free(curr->data);
+        free(curr);
+        
+        return 1;    
+    }
+
+    if(curr->left && !curr->right){
+        memcpy(curr->data, curr->left->data, element_size);
+        return node_delete(curr->left, curr, compare_function, element_size);
+    }
+
+    if(curr->right && !curr->left){
+         
+        memcpy(curr->data, curr->right->data, element_size);
+        return node_delete(curr->right, curr, compare_function, element_size);
+    }
+
+    if(curr->right && curr->left){
+        data = node_insuccesor_data(curr);
+        successor = node_find(curr, data, compare_function);
+
+        memcpy(curr->data, data, element_size);
+        
+        return node_delete(successor, curr, compare_function, element_size);
+    }
+
+    return -1;
+}
+
+int bst_delete(struct bst *b, void *data){
+    struct node *delete_node = 0;
+    struct node *parent = 0;
+
+    delete_node = node_find(b->root, data, b->compare_function);
+    
+    if(!delete_node)
+        return 0;
+
+
+    parent = node_parent(delete_node, b->root, b->compare_function);
+
+    return node_delete(delete_node, parent, b->compare_function, b->element_size) > 0 ? 1 : 0;
+}
